@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		BFC0CBA32EB87F76000AB90B /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = BFC0CBA22EB87F6E000AB90B /* .gitignore */; };
+		BFC0CBAD2EB886F4000AB90B /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = BFC0CBAC2EB886F3000AB90B /* README.md */; };
 		BFE12F7E2EAFCB83009C8FD1 /* FirebaseAI in Frameworks */ = {isa = PBXBuildFile; productRef = BFE12F7D2EAFCB83009C8FD1 /* FirebaseAI */; };
 		BFE12F802EAFCB83009C8FD1 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = BFE12F7F2EAFCB83009C8FD1 /* FirebaseAnalytics */; };
 		BFE12F822EAFCB83009C8FD1 /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = BFE12F812EAFCB83009C8FD1 /* FirebaseAnalyticsCore */; };
@@ -35,6 +36,7 @@
 
 /* Begin PBXFileReference section */
 		BFC0CBA22EB87F6E000AB90B /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		BFC0CBAC2EB886F3000AB90B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		BFE12F692EA9E558009C8FD1 /* DreamRecoder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DreamRecoder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -96,6 +98,7 @@
 		BFE12F602EA9E558009C8FD1 = {
 			isa = PBXGroup;
 			children = (
+				BFC0CBAC2EB886F3000AB90B /* README.md */,
 				BFC0CBA22EB87F6E000AB90B /* .gitignore */,
 				BFE12F6B2EA9E558009C8FD1 /* DreamRecoder */,
 				BFE12F6A2EA9E558009C8FD1 /* Products */,
@@ -201,6 +204,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BFC0CBA32EB87F76000AB90B /* .gitignore in Resources */,
+				BFC0CBAD2EB886F4000AB90B /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -341,9 +345,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 97859Q56NY;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DreamRecoder/Info.plist;
@@ -361,6 +365,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dr.DreamRecoder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -376,9 +381,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 97859Q56NY;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DreamRecoder/Info.plist;
@@ -396,6 +401,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dr.DreamRecoder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
