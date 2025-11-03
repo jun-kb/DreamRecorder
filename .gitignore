@@ -1,0 +1,54 @@
+# -----------------------------------------------------------------------------
+# .gitignore for Swift/Xcode Projects
+# -----------------------------------------------------------------------------
+
+# --- 1. macOS / System Files ---
+# 一般的なmacOSのシステムファイル
+*.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- 2. Xcode ---
+# ビルド生成物
+build/
+Build/
+DerivedData/
+
+# ユーザー個人の設定
+# (Breakpoints_v2.xcbkptlist, UserInterfaceState.xcuserstate, xcschememanagement.plist などがこれに含まれます)
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+
+# その他の一時ファイル
+*.xccheckout
+*.moved-aside
+*.gcno
+*.gcda
+*.gcov
+
+# --- 3. Swift Package Manager (SPM) ---
+# SPMのビルドアーティファクトとキャッシュ
+.build/
+.swiftpm/
+
+# 重要: Package.resolved ファイルは無視しません (下記参照)
+# チーム間で依存関係のバージョンを固定するために、
+# *.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved は
+# Gitで管理（コミット）するのがベストプラクティスです。
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# --- 4. センシティブな情報 (重要！) ---
+# APIキーやプロジェクトIDを含むFirebaseの設定ファイル
+# これは絶対にリポジトリに含めてはいけません。
+GoogleService-Info.plist
+
+# その他の一般的な機密ファイル
+.env
+*.env
