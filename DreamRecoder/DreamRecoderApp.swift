@@ -2,7 +2,6 @@
 
 import SwiftUI
 import Combine
-import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
 import FirebaseAI
@@ -10,24 +9,15 @@ import Speech
 import AVFoundation
 import AVFAudio
 
-class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        FirebaseApp.configure()
-        
-        return true
-    }
-}
-
 // MARK: - App Entry Point
 @main
 struct DreamRecorderApp: App {
+    // Firebaseの初期化をAppDelegateに委任
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    
-    init() {
-    }
     
     var body: some Scene {
         WindowGroup {
+            // アプリの最初のビューをContentViewに
             ContentView()
         }
     }
