@@ -15,18 +15,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Auto approve PR
-        if: cgithub.event.comment.body == '/approve'
+        if: contains(github.event.comment.body, '/approve')
         uses: hmarr/auto-approve-action@v4
         with:
           review-message: "Auto approved via /approve command"
           pull-request-number: ${{ github.event.issue.number }}
       - name: Merge PR
-        if: github.event.comment.body == '/merge'
+        if: contains(github.event.comment.body, '/merge')
         run: gh pr merge ${{ github.event.issue.number }} --squash --delete-branch
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Close PR
-        if: github.event.comment.body == '/reject'
+        if: contains(github.event.comment.body, '/reject')
         run: gh pr close ${{ github.event.issue.number }}
         env:
           GH_TOKEN: ${{ github.token }}
