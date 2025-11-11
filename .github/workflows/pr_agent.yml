@@ -20,11 +20,7 @@ jobs:
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONFIG.CUSTOM_MODEL_MAX_TOKENS: 64000
-          CONFIG.RESPONSE_LANGUAGE: "ja-JP"
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
-          github_action_config.auto_approve: "true"
-          CONFIG.AUTO_APPROVE_FOR_LOW_REVIEW_EFFORT: "3"
-          CONFIG.AUTO_APPROVE_FOR_NO_SUGGESTIONS: "true"
 
