@@ -9,7 +9,7 @@ git clone https://github.com/your-username/DreamRecorder.git
 ```
 
 ```bash
-cd DreamRecoder
+cd DreamRecorder
 ```
 
 ## 2\. プロジェクトファイルの設定
