@@ -16,11 +16,11 @@ cd DreamRecorder
 
 1.  ジュンジュンから、`GoogleService-Info.plist` ファイルを貰います。
 
-2.  貰った `GoogleService-Info.plist` ファイルを、Xcodeプロジェクトの `DreamRecoder/` フォルダ（`DreamRecoderApp.swift` と同じ階層）にドラッグ＆ドロップで追加します。
+2.  貰った `GoogleService-Info.plist` ファイルを、Xcodeプロジェクトの `DreamRecorder/` フォルダ（`DreamRecorderApp.swift` と同じ階層）にドラッグ＆ドロップで追加します。
 
     ```
     DreamRecoder/
-    ├── DreamRecoderApp.swift
+    ├── DreamRecorderApp.swift
     ├── GoogleService-Info.plist  <-- (ここに配置)
     ├── Info.plist
     ├── Assets.xcassets
@@ -31,9 +31,9 @@ cd DreamRecorder
 
 ## 3\. Xcodeでのビルド
 
-1.  ターミナルから `DreamRecoder.xcodeproj` ファイルを開きます。
+1.  ターミナルから `DreamRecorder.xcodeproj` ファイルを開きます。
     ```bash
-    open DreamRecoder.xcodeproj
+    open DreamRecorder.xcodeproj
     ```
 2.  Xcodeが自動的にSwift Packageの依存関係（`FirebaseAI`, `FirebaseAuth`, `FirebaseFirestore` など）を解決するのを待ちます。
 3.  実行するターゲット（シミュレータまたはUSBで接続した実機）を選択します。
