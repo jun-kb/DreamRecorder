@@ -5,8 +5,11 @@
 まず、このプロジェクトをローカル環境にクローンします。
 
 ```bash
-git clone https://github.com/your-username/DreamRecoder.git
-cd DreamRecoder
+git clone https://github.com/your-username/DreamRecorder.git
+```
+
+```bash
+cd DreamRecorder
 ```
 
 ## 2\. プロジェクトファイルの設定
