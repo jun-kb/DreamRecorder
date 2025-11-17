@@ -40,9 +40,22 @@
 		BFE12F692EA9E558009C8FD1 /* DreamRecorder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DreamRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BFBF67452ECB098300C124B7 /* Exceptions for "DreamRecorder" folder in "DreamRecorder" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BFE12F682EA9E558009C8FD1 /* DreamRecorder */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BFE12F6B2EA9E558009C8FD1 /* DreamRecorder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BFBF67452ECB098300C124B7 /* Exceptions for "DreamRecorder" folder in "DreamRecorder" target */,
+			);
 			path = DreamRecorder;
 			sourceTree = "<group>";
 		};
