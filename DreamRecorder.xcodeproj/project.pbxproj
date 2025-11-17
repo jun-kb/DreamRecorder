@@ -41,7 +41,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		BFDEC7C02EAFFA0C00C2D011 /* Exceptions for "DreamRecorder" folder in "DreamRecorder" target */ = {
+		BFBF67452ECB098300C124B7 /* Exceptions for "DreamRecorder" folder in "DreamRecorder" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -54,7 +54,7 @@
 		BFE12F6B2EA9E558009C8FD1 /* DreamRecorder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				BFDEC7C02EAFFA0C00C2D011 /* Exceptions for "DreamRecorder" folder in "DreamRecorder" target */,
+				BFBF67452ECB098300C124B7 /* Exceptions for "DreamRecorder" folder in "DreamRecorder" target */,
 			);
 			path = DreamRecorder;
 			sourceTree = "<group>";
