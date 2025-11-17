@@ -5,7 +5,10 @@
 まず、このプロジェクトをローカル環境にクローンします。
 
 ```bash
-git clone https://github.com/your-username/DreamRecoder.git
+git clone https://github.com/your-username/DreamRecorder.git
+```
+
+```bash
 cd DreamRecoder
 ```
 
