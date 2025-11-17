@@ -9,3 +9,4 @@ struct Dream: Identifiable, Codable {
     let createdAt: Date
     var interpretation: String?
 }
+
