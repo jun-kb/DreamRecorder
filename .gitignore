@@ -25,6 +25,8 @@ DerivedData/
 *.xcworkspace/xcuserdata/
 *.xcuserdatad/
 *.xcuserstate
+buildServer.json
+.vscode
 
 # その他の一時ファイル
 *.xccheckout

@@ -17,5 +17,14 @@ struct ContentView: View {
                 SignInView(authManager: authManager)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // アプリがフォアグラウンドに戻った時にユーザー情報を再読み込み
+            // （メール検証リンクをクリックした後など）
+            Task {
+                if authManager.isSignedIn {
+                    try? await authManager.reloadUser()
+                }
+            }
+        }
     }
 }

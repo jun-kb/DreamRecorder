@@ -5,6 +5,7 @@ struct SignInView: View {
     @ObservedObject var authManager: AuthManager
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showingEmailAuth = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -22,13 +23,21 @@ struct SignInView: View {
             if isLoading {
                 ProgressView()
             } else {
-                Button("はじめる") {
-                    Task {
-                        await signIn()
+                VStack(spacing: 12) {
+                    Button("はじめる（匿名）") {
+                        Task {
+                            await signIn()
+                        }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    
+                    Button("メール/パスワードでログイン") {
+                        showingEmailAuth = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
             }
             if let errorMessage {
                 Text(errorMessage)
@@ -38,6 +47,9 @@ struct SignInView: View {
             }
         }
         .padding()
+        .sheet(isPresented: $showingEmailAuth) {
+            EmailAuthView(authManager: authManager)
+        }
     }
     
     private func signIn() async {

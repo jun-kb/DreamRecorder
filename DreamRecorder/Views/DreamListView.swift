@@ -7,6 +7,7 @@ struct DreamListView: View {
     
     @State private var showingDreamSheet = false // 「追加」「編集」兼用
     @State private var dreamToEdit: Dream? = nil  // 編集対象の夢を保持
+    @State private var showingAccountLink = false // アカウント連携画面の表示
     
     // 1. 選択された日付を管理するState
     @State private var selectedDate: Date = Date()
@@ -78,6 +79,13 @@ struct DreamListView: View {
             }
             .navigationTitle("夢の記録")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingAccountLink = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         self.dreamToEdit = nil
@@ -91,6 +99,9 @@ struct DreamListView: View {
                 AddDreamView(recordDate: selectedDate, dreamToEdit: dreamToEdit)
                     // .environmentObject(dreamService) // 環境オブジェクトは自動で引き継がれる
                     // .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showingAccountLink) {
+                SettingsView(authManager: authManager)
             }
             // 認証IDが変わった時、またはViewが最初に表示された時にリスナーをセットアップ
             .onChange(of: authManager.userId) {
