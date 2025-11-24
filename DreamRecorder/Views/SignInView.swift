@@ -7,37 +7,68 @@ struct SignInView: View {
     @State private var errorMessage: String?
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "moon.stars.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.purple)
+        ZStack {
+            // 背景
+            Color.clear.dreamBackground()
             
-            Text("夢記録アプリ")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("あなたの夢を記録・分析します")
-                .foregroundColor(.secondary)
-            
-            if isLoading {
-                ProgressView()
-            } else {
-                Button("はじめる") {
-                    Task {
-                        await signIn()
-                    }
+            VStack(spacing: 30) {
+                Spacer()
+                
+                Image(uiImage: UIImage(named: "AppIcon") ?? UIImage()) // アプリアイコンを表示（もしあれば）
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 120, height: 120)
+                    .cornerRadius(24)
+                    .shadow(color: .dreamAccent.opacity(0.5), radius: 20, x: 0, y: 10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                
+                VStack(spacing: 8) {
+                    Text("Dream Recorder")
+                        .font(.dreamTitle)
+                        .foregroundColor(.dreamText)
+                    
+                    Text("あなたの夢を記録・分析します")
+                        .font(.dreamBody)
+                        .foregroundColor(.dreamTextSecondary)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                
+                Spacer()
+                
+                if isLoading {
+                    ProgressView()
+                        .tint(.dreamAccent)
+                } else {
+                    Button {
+                        Task {
+                            await signIn()
+                        }
+                    } label: {
+                        Text("はじめる")
+                            .font(.dreamHeadline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.dreamAccent)
+                            .cornerRadius(16)
+                            .shadow(color: .dreamAccent.opacity(0.4), radius: 10, x: 0, y: 5)
+                    }
+                    .padding(.horizontal, 40)
+                }
+                
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.dreamCaption)
+                        .foregroundColor(.red)
+                        .padding(.top)
+                }
+                
+                Spacer()
             }
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.top)
-            }
+            .padding()
         }
-        .padding()
     }
     
     private func signIn() async {

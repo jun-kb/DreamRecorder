@@ -18,6 +18,7 @@ Thumbs.db
 build/
 Build/
 DerivedData/
+buildServer.json
 
 # ユーザー個人の設定
 # (Breakpoints_v2.xcbkptlist, UserInterfaceState.xcuserstate, xcschememanagement.plist などがこれに含まれます)
@@ -25,6 +26,7 @@ DerivedData/
 *.xcworkspace/xcuserdata/
 *.xcuserdatad/
 *.xcuserstate
+.vscode
 
 # その他の一時ファイル
 *.xccheckout

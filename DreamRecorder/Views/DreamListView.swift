@@ -22,75 +22,88 @@ struct DreamListView: View {
     var body: some View {
         NavigationView {
             // 3. カレンダーとリストを縦に並べる
-            VStack {
-                // 4. カレンダーUIの追加
-                DatePicker(
-                    "日付選択",
-                    selection: $selectedDate,
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical) // これでカレンダー表示になる
-                .padding(.horizontal)
+            ZStack {
+                // 背景
+                Color.clear.dreamBackground()
                 
-                // 5. フィルタリングされたリストの表示
-                ZStack {
-                    // フィルタリングした結果、夢がない場合に表示
-                    if filteredDreams.isEmpty && !dreamService.isLoading {
-                        VStack(spacing: 16) {
-                            Image(systemName: "moon.zzz.fill")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray)
-                            Text("この日の夢はありません")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                            Text("右上の + ボタンから記録を始めましょう")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.bottom, 60) // カレンダーの下に表示されるよう調整
-                    } else {
-                        // フィルタリングされた夢のリスト
-                        List {
-                            ForEach(filteredDreams) { dream in
-                                Button{
-                                    self.dreamToEdit = dream
-                                    self.showingDreamSheet = true
-                                } label: {
-                                    DreamRow(dream: dream)
-                                        // DreamRowにEnvironmentObjectを渡す
-                                        // ※ContentViewから渡されているので、ここでは不要だが
-                                        //   可読性のために残しても良い
-                                        // .environmentObject(dreamService)
-                                        // .environmentObject(authManager)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .onDelete(perform: deleteDreams)
-                        }
-                    }
+                VStack(spacing: 0) {
+                    // 4. カレンダーUIの追加
+                    DatePicker(
+                        "日付選択",
+                        selection: $selectedDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .colorScheme(.dark) // カレンダーをダークモード表示
+                    .accentColor(.dreamAccent)
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                    .background(Color.white.opacity(0.05))
+                    .cornerRadius(20)
+                    .padding()
                     
-                    if dreamService.isLoading {
-                        ProgressView()
+                    // 5. フィルタリングされたリストの表示
+                    ZStack {
+                        // フィルタリングした結果、夢がない場合に表示
+                        if filteredDreams.isEmpty && !dreamService.isLoading {
+                            VStack(spacing: 16) {
+                                Image(systemName: "moon.zzz.fill")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.dreamTextSecondary)
+                                Text("この日の夢はありません")
+                                    .font(.dreamHeadline)
+                                    .foregroundColor(.dreamTextSecondary)
+                                Text("右上の + ボタンから記録を始めましょう")
+                                    .font(.dreamCaption)
+                                    .foregroundColor(.dreamTextSecondary)
+                            }
+                            .padding(.bottom, 60)
+                        } else {
+                            // フィルタリングされた夢のリスト
+                            List {
+                                ForEach(filteredDreams) { dream in
+                                    Button{
+                                        self.dreamToEdit = dream
+                                        self.showingDreamSheet = true
+                                    } label: {
+                                        DreamRow(dream: dream)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .listRowBackground(Color.clear) // リスト行の背景を透明に
+                                    .listRowSeparator(.hidden)      // 区切り線を消す
+                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)) // 余白調整
+                                }
+                                .onDelete(perform: deleteDreams)
+                            }
+                            .listStyle(.plain) // プレーンなリストスタイル
+                            .scrollContentBackground(.hidden) // リスト自体の背景を隠す
+                        }
+                        
+                        if dreamService.isLoading {
+                            ProgressView()
+                                .tint(.dreamAccent)
+                        }
                     }
+                    // Listがカレンダーを押し出さないようにサイズを固定
+                    .frame(maxHeight: .infinity)
                 }
-                // Listがカレンダーを押し出さないようにサイズを固定
-                .frame(maxHeight: .infinity)
             }
             .navigationTitle("夢の記録")
+            .navigationBarTitleDisplayMode(.inline) // タイトルを小さく表示（好みで）
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         self.dreamToEdit = nil
                         self.showingDreamSheet = true
                     } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.dreamAccent)
                     }
                 }
             }
             .sheet(isPresented: $showingDreamSheet) {
                 AddDreamView(recordDate: selectedDate, dreamToEdit: dreamToEdit)
-                    // .environmentObject(dreamService) // 環境オブジェクトは自動で引き継がれる
-                    // .environmentObject(authManager)
             }
             // 認証IDが変わった時、またはViewが最初に表示された時にリスナーをセットアップ
             .onChange(of: authManager.userId) {
@@ -100,6 +113,9 @@ struct DreamListView: View {
                 dreamService.setupListener(userId: authManager.userId ?? "")
             }
         }
+        // ナビゲーションバーのスタイル調整（UIKitのappearanceを使う必要がある場合もあるが、簡易的に）
+        .accentColor(.dreamAccent)
+        .preferredColorScheme(.dark) // ステータスバーとナビゲーションタイトルを白くする
     }
     
     private func deleteDreams(at offsets: IndexSet) {

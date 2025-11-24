@@ -37,109 +37,132 @@ struct AddDreamView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text(isEditing ? "夢の日付" : "記録する日付")) {
-                    HStack {
-                        Spacer()
-                        Text(dateToShow, style: .date)
-                            .fontWeight(.bold)
-                        Spacer()
-                    }
-                }
+            ZStack {
+                // 背景
+                Color.clear.dreamBackground()
                 
-                Section {
-                    TextEditor(text: $dreamContent)
-                        .frame(minHeight: 200)
-                        .placeholder(when: dreamContent.isEmpty) {
-                            Text("今日見た夢を記録しましょう...")
-                                .foregroundColor(.gray)
-                                .padding(.top, 8)
-                                .padding(.leading, 4)
+                Form {
+                    Section(header: Text(isEditing ? "夢の日付" : "記録する日付").foregroundColor(.dreamTextSecondary)) {
+                        HStack {
+                            Spacer()
+                            Text(dateToShow, style: .date)
+                                .fontWeight(.bold)
+                                .foregroundColor(.dreamText)
+                            Spacer()
                         }
-                } header: {
-                    HStack {
-                        Text("夢の内容")
-                        Spacer()
-                                            
-                        Button {
-                            Task {
-                                await refineDreamContent()
-                            }
-                        } label: {
-                            if isRefining {
-                                ProgressView()
-                                    .scaleEffect(0.7) // 小さく表示
-                            } else {
-                                Label("AIで清書", systemImage: "pencil.and.scribble")
-                            }
-                        }
-                        .font(.caption)
-                        .buttonStyle(.borderless)
-                        .tint(.blue)
-                        .disabled(isRefining || isSaving || dreamContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .listRowBackground(Color.dreamCard)
                     }
-                } footer: {
-                    VStack(alignment: .center) {
-                                        
-                        if speechManager.isRecording {
-                            Text(speechManager.transcript.isEmpty ? "認識中..." : speechManager.transcript)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 5)
-                                .frame(minHeight: 30)
-                        }
-                                        
-                        Button {
-                            // 録音/停止 トグル
-                            Task {
-                                if speechManager.isRecording {
-                                    speechManager.stopRecording()
+                    
+                    Section {
+                        TextEditor(text: $dreamContent)
+                            .frame(minHeight: 200)
+                            .scrollContentBackground(.hidden) // TextEditorの背景を透明に
+                            .background(Color.clear)
+                            .foregroundColor(.dreamText)
+                            .placeholder(when: dreamContent.isEmpty) {
+                                Text("今日見た夢を記録しましょう...")
+                                    .foregroundColor(.dreamTextSecondary)
+                                    .padding(.top, 8)
+                                    .padding(.leading, 4)
+                            }
+                            .listRowBackground(Color.dreamCard)
+                    } header: {
+                        HStack {
+                            Text("夢の内容")
+                                .foregroundColor(.dreamTextSecondary)
+                            Spacer()
+                                                
+                            Button {
+                                Task {
+                                    await refineDreamContent()
+                                }
+                            } label: {
+                                if isRefining {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(.dreamAccent)
                                 } else {
-                                    await speechManager.startRecording()
+                                    Label("AIで清書", systemImage: "pencil.and.scribble")
                                 }
                             }
-                        } label: {
-                            Image(systemName: speechManager.isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                                .font(.system(size: 44)) // サイズを大きく
-                                .foregroundColor(speechManager.isRecording ? .red : (speechManager.isAuthorized ? .blue : .gray))
+                            .font(.dreamCaption)
+                            .buttonStyle(.borderless)
+                            .tint(.dreamAccent)
+                            .disabled(isRefining || isSaving || dreamContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-                        // 録音中、保存中、許可がない場合はボタンの挙動を制御
-                        .disabled(isSaving || isRefining)
-                        .padding(.top, 8)
-
-                        // エラーメッセージ表示
-                        if let speechError = speechManager.errorMessage {
-                            Text(speechError)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                                .padding(.top, 5)
-                        }
-                    }
-                    .frame(maxWidth: .infinity) // 中央揃えのため
-                }
-                
-                Section {
-                    Button(action: confirmSaveOrUpdate) {
-                        if isSaving {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                Text("保存中...")
-                                    .padding(.leading, 8)
-                                Spacer()
+                    } footer: {
+                        VStack(alignment: .center) {
+                                            
+                            if speechManager.isRecording {
+                                Text(speechManager.transcript.isEmpty ? "認識中..." : speechManager.transcript)
+                                    .font(.dreamCaption)
+                                    .foregroundColor(.dreamTextSecondary)
+                                    .padding(.top, 5)
+                                    .frame(minHeight: 30)
                             }
-                        } else {
-                            HStack {
-                                Spacer()
-                                Text("保存")
-                                    .fontWeight(.semibold)
-                                Spacer()
+                                            
+                            Button {
+                                // 録音/停止 トグル
+                                Task {
+                                    if speechManager.isRecording {
+                                        speechManager.stopRecording()
+                                    } else {
+                                        await speechManager.startRecording()
+                                    }
+                                }
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(speechManager.isRecording ? Color.red : Color.dreamAccent)
+                                        .frame(width: 60, height: 60)
+                                        .shadow(color: (speechManager.isRecording ? Color.red : Color.dreamAccent).opacity(0.5), radius: 10, x: 0, y: 5)
+                                    
+                                    Image(systemName: speechManager.isRecording ? "stop.fill" : "mic.fill")
+                                        .font(.system(size: 24, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .disabled(isSaving || isRefining)
+                            .padding(.top, 16)
+    
+                            // エラーメッセージ表示
+                            if let speechError = speechManager.errorMessage {
+                                Text(speechError)
+                                    .font(.dreamCaption)
+                                    .foregroundColor(.red)
+                                    .padding(.top, 5)
                             }
                         }
+                        .frame(maxWidth: .infinity)
                     }
-                    .disabled(dreamContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving || isRefining)
+                    
+                    Section {
+                        Button(action: confirmSaveOrUpdate) {
+                            if isSaving {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                        .tint(.white)
+                                    Text("保存中...")
+                                        .padding(.leading, 8)
+                                    Spacer()
+                                }
+                            } else {
+                                HStack {
+                                    Spacer()
+                                    Text("保存")
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                            }
+                        }
+                        .disabled(dreamContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving || isRefining)
+                        .listRowBackground(Color.dreamAccent)
+                        .foregroundColor(.white)
+                    }
                 }
+                .scrollContentBackground(.hidden) // Formの背景を透明に
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
@@ -148,6 +171,7 @@ struct AddDreamView: View {
                     Button("キャンセル") {
                         dismiss()
                     }
+                    .foregroundColor(.white) // キャンセルボタンを白くして視認性向上
                     .disabled(isSaving || isRefining)
                 }
             }
@@ -200,6 +224,7 @@ struct AddDreamView: View {
                 Text("夢の内容を編集すると、AIによる分析結果はリセットされます。\nよろしいですか？")
             }
         }
+        .preferredColorScheme(.dark) // ステータスバーとナビゲーションタイトルを白くする
     }
     
     // 「保存」ボタンが押された時の確認処理
