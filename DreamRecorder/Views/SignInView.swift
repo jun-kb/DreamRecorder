@@ -43,11 +43,13 @@ struct SignInView: View {
     private func signIn() async {
         isLoading = true
         errorMessage = nil
+        defer {
+            isLoading = false
+        }
         do {
             try await authManager.signInAnonymously()
         } catch {
             print("💥💥💥 サインイン失敗 (詳細): \(error) 💥💥💥")
-            isLoading = false
             errorMessage = "ログインに失敗しました。ネットワーク接続を確認してください。"
         }
     }
