@@ -70,6 +70,7 @@ struct SignInView: View {
         }
     }
     
+    @MainActor
     private func signIn() async {
         isLoading = true
         errorMessage = ""
@@ -81,10 +82,8 @@ struct SignInView: View {
             try await authManager.signInAnonymously()
         } catch {
             print("💥💥💥 サインイン失敗 (詳細): \(error) 💥💥💥")
-            await MainActor.run {
-                errorMessage = "ログインに失敗しました。ネットワーク接続を確認してください。"
-                showError = true
-            }
+            errorMessage = "ログインに失敗しました。ネットワーク接続を確認してください。"
+            showError = true
         }
     }
 }
