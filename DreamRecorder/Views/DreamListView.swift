@@ -197,15 +197,22 @@ struct DreamListView: View {
         // フィルタリングされたリスト(filteredDreams)から削除対象の夢を取得
         let dreamsToDelete = offsets.map { filteredDreams[$0] }
         
-        for dream in dreamsToDelete {
-            Task {
-                do {
-                    try await dreamService.deleteDream(dream, userId: userId)
-                } catch {
-                    await MainActor.run {
-                        self.errorMessage = "夢の削除に失敗しました: \(error.localizedDescription)"
-                        self.showError = true
+        Task {
+            do {
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    for dream in dreamsToDelete {
+                        group.addTask {
+                            try await dreamService.deleteDream(dream, userId: userId)
+                        }
                     }
+                    try await group.waitForAll()
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "夢の削除に失敗しました。時間をおいて再度お試しください。"
+                    self.showError = true
+                    // デバッグ用にエラー詳細をログ出力します
+                    print("夢の削除に失敗しました: \(error)")
                 }
             }
         }
