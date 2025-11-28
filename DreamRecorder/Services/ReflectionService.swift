@@ -83,7 +83,9 @@ class ReflectionService: ObservableObject {
         guard let reflectionId = reflection.id else {
             throw NSError(domain: "ReflectionServiceError", code: 0, userInfo: [NSLocalizedDescriptionKey: "日記のIDがありません。"])
         }
-        guard !userId.isEmpty else { return }
+        guard !userId.isEmpty else {
+            throw NSError(domain: "ReflectionServiceError", code: 1, userInfo: [NSLocalizedDescriptionKey: "ユーザーIDがありません。"])
+        }
         
         try await db.collection("users")
             .document(userId)
