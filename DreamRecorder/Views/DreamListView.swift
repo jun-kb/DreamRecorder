@@ -221,17 +221,25 @@ struct DreamListView: View {
     private func deleteReflections(at offsets: IndexSet) {
         guard let userId = authManager.userId else { return }
         
+        // フィルタリングされたリスト(filteredReflections)から削除対象の日記を取得
         let reflectionsToDelete = offsets.map { filteredReflections[$0] }
         
-        for reflection in reflectionsToDelete {
-            Task {
-                do {
-                    try await reflectionService.deleteReflection(reflection, userId: userId)
-                } catch {
-                    await MainActor.run {
-                        self.errorMessage = "日記の削除に失敗しました: \(error.localizedDescription)"
-                        self.showError = true
+        Task {
+            do {
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    for reflection in reflectionsToDelete {
+                        group.addTask {
+                            try await reflectionService.deleteReflection(reflection, userId: userId)
+                        }
                     }
+                    try await group.waitForAll()
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "日記の削除に失敗しました。時間をおいて再度お試しください。"
+                    self.showError = true
+                    // デバッグ用にエラー詳細をログ出力します
+                    print("日記の削除に失敗しました: \(error)")
                 }
             }
         }
