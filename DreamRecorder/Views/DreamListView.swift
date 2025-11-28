@@ -23,6 +23,9 @@ struct DreamListView: View {
     @State private var dreamToEdit: Dream?
     @State private var reflectionToEdit: Reflection?
     
+    @State private var showError = false
+    @State private var errorMessage = ""
+    
     // 1. 選択された日付を管理するState
     @State private var selectedDate: Date = Date()
     
@@ -169,16 +172,18 @@ struct DreamListView: View {
                     AddReflectionView(recordDate: selectedDate, reflectionToEdit: reflectionToEdit)
                 }
             }
-            // 認証IDが変わった時、またはViewが最初に表示された時にリスナーをセットアップ
+            // 認証IDが変わった時にリスナーをセットアップ
             .onChange(of: authManager.userId) {
-                let userId = authManager.userId ?? ""
-                dreamService.setupListener(userId: userId)
-                reflectionService.setupListener(userId: userId)
+                setupListeners()
             }
-            .task {
-                let userId = authManager.userId ?? ""
-                dreamService.setupListener(userId: userId)
-                reflectionService.setupListener(userId: userId)
+            // Viewが最初に表示された時にリスナーをセットアップ
+            .onAppear {
+                setupListeners()
+            }
+            .alert("エラー", isPresented: $showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
             }
         }
         // ナビゲーションバーのスタイル調整（UIKitのappearanceを使う必要がある場合もあるが、簡易的に）
@@ -194,7 +199,14 @@ struct DreamListView: View {
         
         for dream in dreamsToDelete {
             Task {
-                try? await dreamService.deleteDream(dream, userId: userId)
+                do {
+                    try await dreamService.deleteDream(dream, userId: userId)
+                } catch {
+                    await MainActor.run {
+                        self.errorMessage = "夢の削除に失敗しました: \(error.localizedDescription)"
+                        self.showError = true
+                    }
+                }
             }
         }
     }
@@ -206,8 +218,21 @@ struct DreamListView: View {
         
         for reflection in reflectionsToDelete {
             Task {
-                try? await reflectionService.deleteReflection(reflection, userId: userId)
+                do {
+                    try await reflectionService.deleteReflection(reflection, userId: userId)
+                } catch {
+                    await MainActor.run {
+                        self.errorMessage = "日記の削除に失敗しました: \(error.localizedDescription)"
+                        self.showError = true
+                    }
+                }
             }
         }
+    }
+    
+    private func setupListeners() {
+        let userId = authManager.userId ?? ""
+        dreamService.setupListener(userId: userId)
+        reflectionService.setupListener(userId: userId)
     }
 }

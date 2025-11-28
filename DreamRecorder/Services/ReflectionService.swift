@@ -80,7 +80,9 @@ class ReflectionService: ObservableObject {
     }
     
     func deleteReflection(_ reflection: Reflection, userId: String) async throws {
-        guard let reflectionId = reflection.id else { return }
+        guard let reflectionId = reflection.id else {
+            throw NSError(domain: "ReflectionServiceError", code: 0, userInfo: [NSLocalizedDescriptionKey: "日記のIDがありません。"])
+        }
         guard !userId.isEmpty else { return }
         
         try await db.collection("users")

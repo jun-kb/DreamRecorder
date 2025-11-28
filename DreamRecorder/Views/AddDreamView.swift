@@ -259,9 +259,11 @@ struct AddDreamView: View {
         await MainActor.run { isSaving = true }
         
         guard let userId = authManager.userId else {
-            errorMessage = "ユーザーが認証されていません。"
-            showError = true
-            isSaving = false
+            await MainActor.run {
+                errorMessage = "ユーザーが認証されていません。"
+                showError = true
+                isSaving = false
+            }
             return
         }
             

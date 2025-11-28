@@ -4,7 +4,8 @@ import SwiftUI
 struct SignInView: View {
     @ObservedObject var authManager: AuthManager
     @State private var isLoading = false
-    @State private var errorMessage: String?
+    @State private var showError = false
+    @State private var errorMessage = ""
     
     var body: some View {
         ZStack {
@@ -58,22 +59,21 @@ struct SignInView: View {
                     .padding(.horizontal, 40)
                 }
                 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.dreamCaption)
-                        .foregroundColor(.red)
-                        .padding(.top)
-                }
-                
                 Spacer()
             }
             .padding()
+            .alert("エラー", isPresented: $showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
     
     private func signIn() async {
         isLoading = true
-        errorMessage = nil
+        errorMessage = ""
+        showError = false
         defer {
             isLoading = false
         }
@@ -81,7 +81,10 @@ struct SignInView: View {
             try await authManager.signInAnonymously()
         } catch {
             print("💥💥💥 サインイン失敗 (詳細): \(error) 💥💥💥")
-            errorMessage = "ログインに失敗しました。ネットワーク接続を確認してください。"
+            await MainActor.run {
+                errorMessage = "ログインに失敗しました。ネットワーク接続を確認してください。"
+                showError = true
+            }
         }
     }
 }
