@@ -57,7 +57,7 @@ class DreamService: ObservableObject {
                 } catch {
                     let appError = AppError.decodingError(error)
                     ErrorLogger.logError(appError, context: "DreamService.setupListener - decoding dream \(doc.documentID)")
-                    // デコードに失敗したドキュメントはスキップし、他のドキュメントは処理を続行
+                    self?.errorMessage = "一部のデータの読み込みに失敗しました。"
                 }
             }
             self?.dreams = decodedDreams
@@ -99,7 +99,7 @@ class DreamService: ObservableObject {
     }
 
     /// AI（Gemini）を使って夢を解釈し、結果をFirestoreに保存する
-    func interpretDream(dream: Dream, userId: String) async throws {
+    func interpretDream(dream: Dream, userId: String) async {
         guard let dreamId = dream.id else {
             throw AppError.missingDocumentId("夢")
         }
