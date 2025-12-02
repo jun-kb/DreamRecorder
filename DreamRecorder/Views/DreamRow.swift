@@ -61,7 +61,12 @@ struct DreamRow: View {
                 Button {
                     Task {
                         guard let userId = authManager.userId else { return }
-                        await dreamService.interpretDream(dream: dream, userId: userId)
+                        do {
+                            try await dreamService.interpretDream(dream: dream, userId: userId)
+                        } catch {
+                            // エラーはdreamServiceのerrorMessageに設定されるため、ここではログに記録のみ
+                            ErrorLogger.logError(error, context: "DreamRow.interpretDream")
+                        }
                     }
                 } label: {
                     HStack {

@@ -32,22 +32,33 @@ class ReflectionService: ObservableObject {
             self?.isLoading = false
             
             if let error {
-                self?.errorMessage = error.localizedDescription
+                let appError = AppError.networkError(error)
+                ErrorLogger.logError(appError, context: "ReflectionService.setupListener")
+                self?.errorMessage = ErrorLogger.userFacingMessage(from: appError)
                 return
             }
             
             guard let snapshot else { return }
             
-            self?.reflections = snapshot.documents.compactMap { doc in
-                try? doc.data(as: Reflection.self)
+            // 変更があったドキュメントをデコード
+            var decodedReflections: [Reflection] = []
+            for doc in snapshot.documents {
+                do {
+                    let reflection = try doc.data(as: Reflection.self)
+                    decodedReflections.append(reflection)
+                } catch {
+                    let appError = AppError.decodingError(error)
+                    ErrorLogger.logError(appError, context: "ReflectionService.setupListener - decoding reflection \(doc.documentID)")
+                    // デコードに失敗したドキュメントはスキップし、他のドキュメントは処理を続行
+                }
             }
+            self?.reflections = decodedReflections
         }
     }
     
     func saveReflection(content: String, recordDate: Date, userId: String) async throws {
         guard !userId.isEmpty else {
-            throw NSError(domain: "", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "ユーザーがログインしていません"])
+            throw AppError.authenticationRequired
         }
         
         let reflection = Reflection(
@@ -64,12 +75,10 @@ class ReflectionService: ObservableObject {
     
     func updateReflection(reflection: Reflection, newContent: String, userId: String) async throws {
         guard let reflectionId = reflection.id else {
-            throw NSError(domain: "", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "日記のIDがありません"])
+            throw AppError.missingDocumentId("日記")
         }
         guard !userId.isEmpty else {
-            throw NSError(domain: "", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "ユーザーIDがありません"])
+            throw AppError.invalidUserId
         }
         
         try await db.collection("users")
@@ -80,8 +89,12 @@ class ReflectionService: ObservableObject {
     }
     
     func deleteReflection(_ reflection: Reflection, userId: String) async throws {
-        guard let reflectionId = reflection.id else { return }
-        guard !userId.isEmpty else { return }
+        guard let reflectionId = reflection.id else {
+            throw AppError.missingDocumentId("日記")
+        }
+        guard !userId.isEmpty else {
+            throw AppError.invalidUserId
+        }
         
         try await db.collection("users")
             .document(userId)

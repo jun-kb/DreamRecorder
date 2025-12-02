@@ -22,6 +22,8 @@ struct DreamListView: View {
     @State private var activeSheet: AddSheet?
     @State private var dreamToEdit: Dream?
     @State private var reflectionToEdit: Reflection?
+    @State private var showError = false
+    @State private var errorMessage = ""
     
     // 1. 選択された日付を管理するState
     @State private var selectedDate: Date = Date()
@@ -184,6 +186,11 @@ struct DreamListView: View {
         // ナビゲーションバーのスタイル調整（UIKitのappearanceを使う必要がある場合もあるが、簡易的に）
         .accentColor(.dreamAccent)
         .preferredColorScheme(.dark) // ステータスバーとナビゲーションタイトルを白くする
+        .alert("エラー", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
     }
     
     private func deleteDreams(at offsets: IndexSet) {
@@ -194,7 +201,15 @@ struct DreamListView: View {
         
         for dream in dreamsToDelete {
             Task {
-                try? await dreamService.deleteDream(dream, userId: userId)
+                do {
+                    try await dreamService.deleteDream(dream, userId: userId)
+                } catch {
+                    await MainActor.run {
+                        errorMessage = ErrorLogger.userFacingMessage(from: error)
+                        showError = true
+                    }
+                    ErrorLogger.logError(error, context: "DreamListView.deleteDreams")
+                }
             }
         }
     }
@@ -206,7 +221,15 @@ struct DreamListView: View {
         
         for reflection in reflectionsToDelete {
             Task {
-                try? await reflectionService.deleteReflection(reflection, userId: userId)
+                do {
+                    try await reflectionService.deleteReflection(reflection, userId: userId)
+                } catch {
+                    await MainActor.run {
+                        errorMessage = ErrorLogger.userFacingMessage(from: error)
+                        showError = true
+                    }
+                    ErrorLogger.logError(error, context: "DreamListView.deleteReflections")
+                }
             }
         }
     }

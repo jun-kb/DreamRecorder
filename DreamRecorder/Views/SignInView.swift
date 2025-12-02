@@ -80,8 +80,14 @@ struct SignInView: View {
         do {
             try await authManager.signInAnonymously()
         } catch {
-            print("💥💥💥 サインイン失敗 (詳細): \(error) 💥💥💥")
-            errorMessage = "ログインに失敗しました。ネットワーク接続を確認してください。"
+            let appError: AppError
+            if let existingAppError = error as? AppError {
+                appError = existingAppError
+            } else {
+                appError = AppError.networkError(error)
+            }
+            ErrorLogger.logError(appError, context: "SignInView.signIn")
+            errorMessage = ErrorLogger.userFacingMessage(from: appError)
         }
     }
 }
