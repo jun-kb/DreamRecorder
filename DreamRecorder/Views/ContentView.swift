@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     // 必要なServiceをここで初期化
     @StateObject private var dreamService = DreamService()
+    @StateObject private var reflectionService = ReflectionService()
     @StateObject private var authManager = AuthManager()
     
     var body: some View {
@@ -12,6 +13,7 @@ struct ContentView: View {
                 DreamListView()
                     // 必要なServiceを子ビューに渡す
                     .environmentObject(dreamService)
+                    .environmentObject(reflectionService)
                     .environmentObject(authManager)
             } else {
                 SignInView(authManager: authManager)
