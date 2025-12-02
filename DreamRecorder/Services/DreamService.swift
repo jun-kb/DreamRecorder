@@ -112,6 +112,13 @@ class DreamService: ObservableObject {
             self.interpretingDreamId = dreamId
             self.errorMessage = nil
         }
+        
+        // deferでクリーンアップを保証（成功時もエラー時も必ず実行される）
+        defer {
+            Task { @MainActor in
+                self.interpretingDreamId = nil
+            }
+        }
             
         do {
             // AIに渡すプロンプト（指示文）
@@ -156,11 +163,6 @@ class DreamService: ObservableObject {
             
             // エラーを再スローして呼び出し元に伝播
             throw appError
-        }
-            
-        // UIを「解釈中」から元に戻す
-        await MainActor.run {
-            self.interpretingDreamId = nil
         }
     }
     
