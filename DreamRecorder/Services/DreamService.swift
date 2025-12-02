@@ -99,7 +99,7 @@ class DreamService: ObservableObject {
     }
 
     /// AI（Gemini）を使って夢を解釈し、結果をFirestoreに保存する
-    func interpretDream(dream: Dream, userId: String) async {
+    func interpretDream(dream: Dream, userId: String) async throws{
         guard let dreamId = dream.id else {
             throw AppError.missingDocumentId("夢")
         }

@@ -49,7 +49,7 @@ class ReflectionService: ObservableObject {
                 } catch {
                     let appError = AppError.decodingError(error)
                     ErrorLogger.logError(appError, context: "ReflectionService.setupListener - decoding reflection \(doc.documentID)")
-                    // デコードに失敗したドキュメントはスキップし、他のドキュメントは処理を続行
+                    self?.errorMessage = "一部のデータの読み込みに失敗しました。"
                 }
             }
             self?.reflections = decodedReflections

@@ -41,15 +41,15 @@ enum AppError: LocalizedError {
         case .missingDocumentId(let type):
             return "\(type)のIDが存在しません。"
         case .networkError(let error):
-            return "ネットワークエラーが発生しました。"
+            return "ネットワーク接続を確認してください。詳細: \(error.localizedDescription)"
         case .decodingError(let error):
-            return "データの読み込みに失敗しました。"
+            return "データ形式が正しくありません。詳細: \(error.localizedDescription)"
         case .aiServiceError(let message):
             return message
         case .audioSessionError(let error):
-            return "オーディオセッションの設定に失敗しました。"
+            return "オーディオセッションの設定に失敗しました。詳細: \(error.localizedDescription)"
         case .unknownError(let error):
-            return "予期しないエラーが発生しました。"
+            return "予期しないエラーが発生しました。詳細: \(error.localizedDescription)"
         }
     }
     
