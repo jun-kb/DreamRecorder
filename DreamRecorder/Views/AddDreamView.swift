@@ -259,7 +259,9 @@ struct AddDreamView: View {
         await MainActor.run { isSaving = true }
         
         guard let userId = authManager.userId else {
-            errorMessage = "ユーザーが認証されていません。"
+            let error = AppError.authenticationRequired
+            ErrorLogger.logError(error, context: "AddDreamView.performSave")
+            errorMessage = ErrorLogger.userFacingMessage(from: error)
             showError = true
             isSaving = false
             return
@@ -287,8 +289,19 @@ struct AddDreamView: View {
                 dismiss()
             }
         } catch {
+            // パターンB: View層でフロー全体を実行
+            // 2. AppErrorに変換
+            let appError: AppError
+            if let existingAppError = error as? AppError {
+                appError = existingAppError
+            } else {
+                appError = AppError.unknownError(error)
+            }
+            // 3. ログ記録
+            ErrorLogger.logError(appError, context: "AddDreamView.performSave")
+            // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
             await MainActor.run {
-                errorMessage = error.localizedDescription
+                errorMessage = ErrorLogger.userFacingMessage(from: appError)
                 showError = true
                 isSaving = false
             }
@@ -325,12 +338,19 @@ struct AddDreamView: View {
                     self.dreamContent = refinedText
                 }
             } else {
-                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "AIからの応答が空でした。"])
+                throw AppError.aiServiceError("AIからの応答が空でした。")
             }
                 
         } catch {
+            let appError: AppError
+            if let existingAppError = error as? AppError {
+                appError = existingAppError
+            } else {
+                appError = AppError.unknownError(error)
+            }
+            ErrorLogger.logError(appError, context: "AddDreamView.refineDreamContent")
             await MainActor.run {
-                errorMessage = "文章の清書に失敗しました: \(error.localizedDescription)"
+                errorMessage = ErrorLogger.userFacingMessage(from: appError)
                 showError = true
             }
         }

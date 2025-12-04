@@ -40,7 +40,9 @@ class SpeechRecognizerManager: ObservableObject {
         DispatchQueue.main.async {
             self.isAuthorized = (speechStatus == .authorized) && audioStatus
             if !self.isAuthorized {
-                self.errorMessage = "マイクまたは音声認識の許可がありません。設定アプリから許可してください。"
+                let errorMessage = "マイクまたは音声認識の許可がありません。設定アプリから許可してください。"
+                self.errorMessage = errorMessage
+                ErrorLogger.logError(AppError.aiServiceError(errorMessage), context: "SpeechRecognizerManager.requestPermission")
             }
         }
     }
@@ -48,7 +50,9 @@ class SpeechRecognizerManager: ObservableObject {
     /// 2. 録音と認識の開始
     func startRecording() async {
         guard isAuthorized else {
-            errorMessage = "許可がありません。"
+            let errorMessage = "許可がありません。"
+            self.errorMessage = errorMessage
+            ErrorLogger.logError(AppError.aiServiceError(errorMessage), context: "SpeechRecognizerManager.startRecording")
             // 許可がない場合は再度要求を試みる
             await requestPermission()
             return
@@ -73,13 +77,18 @@ class SpeechRecognizerManager: ObservableObject {
             try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
-            errorMessage = "オーディオセッションの設定に失敗: \(error.localizedDescription)"
+            let appError = AppError.audioSessionError(error)
+            ErrorLogger.logError(appError, context: "SpeechRecognizerManager.startRecording")
+            self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
             return
         }
 
         self.recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         guard let recognitionRequest = self.recognitionRequest else {
-            errorMessage = "SFSpeechAudioBufferRecognitionRequestの作成に失敗"
+            let errorMessage = "SFSpeechAudioBufferRecognitionRequestの作成に失敗"
+            let appError = AppError.aiServiceError(errorMessage)
+            ErrorLogger.logError(appError, context: "SpeechRecognizerManager.startRecording")
+            self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
             return
         }
         recognitionRequest.shouldReportPartialResults = true // 途中結果も取得
@@ -116,13 +125,21 @@ class SpeechRecognizerManager: ObservableObject {
                         isFinal = result.isFinal
                     }
                                 
+                    if let error = error {
+                        let appError = AppError.audioSessionError(error)
+                        ErrorLogger.logError(appError, context: "SpeechRecognizerManager.recognitionTask")
+                        self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                    }
+                                
                     if error != nil || isFinal {
                         self.stopRecordingInternal()
                     }
                 }
             }
         } catch {
-            errorMessage = "オーディオエンジンの開始に失敗: \(error.localizedDescription)"
+            let appError = AppError.audioSessionError(error)
+            ErrorLogger.logError(appError, context: "SpeechRecognizerManager.startRecording - audioEngine.start")
+            self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
             stopRecordingInternal()
         }
     }

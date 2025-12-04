@@ -22,6 +22,8 @@ struct DreamListView: View {
     @State private var activeSheet: AddSheet?
     @State private var dreamToEdit: Dream?
     @State private var reflectionToEdit: Reflection?
+    @State private var showError = false
+    @State private var errorMessage = ""
     
     // 1. 選択された日付を管理するState
     @State private var selectedDate: Date = Date()
@@ -184,6 +186,26 @@ struct DreamListView: View {
         // ナビゲーションバーのスタイル調整（UIKitのappearanceを使う必要がある場合もあるが、簡易的に）
         .accentColor(.dreamAccent)
         .preferredColorScheme(.dark) // ステータスバーとナビゲーションタイトルを白くする
+        .alert("エラー", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
+        // パターンA: サービス層のerrorMessageを監視してalert表示
+        .onChange(of: dreamService.errorMessage) { _, newValue in
+            if let error = newValue {
+                errorMessage = error
+                showError = true
+                dreamService.errorMessage = nil
+            }
+        }
+        .onChange(of: reflectionService.errorMessage) { _, newValue in
+            if let error = newValue {
+                errorMessage = error
+                showError = true
+                reflectionService.errorMessage = nil
+            }
+        }
     }
     
     private func deleteDreams(at offsets: IndexSet) {
@@ -194,7 +216,25 @@ struct DreamListView: View {
         
         for dream in dreamsToDelete {
             Task {
-                try? await dreamService.deleteDream(dream, userId: userId)
+                do {
+                    try await dreamService.deleteDream(dream, userId: userId)
+                } catch {
+                    // パターンB: View層でフロー全体を実行
+                    // 2. AppErrorに変換
+                    let appError: AppError
+                    if let existingAppError = error as? AppError {
+                        appError = existingAppError
+                    } else {
+                        appError = AppError.unknownError(error)
+                    }
+                    // 3. ログ記録
+                    ErrorLogger.logError(appError, context: "DreamListView.deleteDreams")
+                    // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
+                    await MainActor.run {
+                        errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                        showError = true
+                    }
+                }
             }
         }
     }
@@ -206,7 +246,25 @@ struct DreamListView: View {
         
         for reflection in reflectionsToDelete {
             Task {
-                try? await reflectionService.deleteReflection(reflection, userId: userId)
+                do {
+                    try await reflectionService.deleteReflection(reflection, userId: userId)
+                } catch {
+                    // パターンB: View層でフロー全体を実行
+                    // 2. AppErrorに変換
+                    let appError: AppError
+                    if let existingAppError = error as? AppError {
+                        appError = existingAppError
+                    } else {
+                        appError = AppError.unknownError(error)
+                    }
+                    // 3. ログ記録
+                    ErrorLogger.logError(appError, context: "DreamListView.deleteReflections")
+                    // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
+                    await MainActor.run {
+                        errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                        showError = true
+                    }
+                }
             }
         }
     }

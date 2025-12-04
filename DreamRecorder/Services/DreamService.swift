@@ -40,24 +40,34 @@ class DreamService: ObservableObject {
             self?.isLoading = false
             
             if let error {
-                self?.errorMessage = error.localizedDescription
+                let appError = AppError.networkError(error)
+                ErrorLogger.logError(appError, context: "DreamService.setupListener")
+                self?.errorMessage = ErrorLogger.userFacingMessage(from: appError)
                 return
             }
             
             guard let snapshot else { return }
             
             // 変更があったドキュメントをデコード
-            self?.dreams = snapshot.documents.compactMap { doc in
-                try? doc.data(as: Dream.self)
+            var decodedDreams: [Dream] = []
+            for doc in snapshot.documents {
+                do {
+                    let dream = try doc.data(as: Dream.self)
+                    decodedDreams.append(dream)
+                } catch {
+                    let appError = AppError.decodingError(error)
+                    ErrorLogger.logError(appError, context: "DreamService.setupListener - decoding dream \(doc.documentID)")
+                    self?.errorMessage = "一部のデータの読み込みに失敗しました。"
+                }
             }
+            self?.dreams = decodedDreams
         }
     }
     
     // 夢を保存
     func saveDream(content: String, recordDate: Date, userId: String) async throws {
         guard !userId.isEmpty else {
-            throw NSError(domain: "", code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "ユーザーがログインしていません"])
+            throw AppError.authenticationRequired
         }
         
         let dream = Dream(
@@ -74,8 +84,12 @@ class DreamService: ObservableObject {
     
     // 夢を削除
     func deleteDream(_ dream: Dream, userId: String) async throws {
-        guard let dreamId = dream.id else { return }
-        guard !userId.isEmpty else { return }
+        guard let dreamId = dream.id else {
+            throw AppError.missingDocumentId("夢")
+        }
+        guard !userId.isEmpty else {
+            throw AppError.invalidUserId
+        }
         
         try await db.collection("users")
             .document(userId)
@@ -85,23 +99,28 @@ class DreamService: ObservableObject {
     }
 
     /// AI（Gemini）を使って夢を解釈し、結果をFirestoreに保存する
-    func interpretDream(dream: Dream, userId: String) async {
-        guard let dreamId = dream.id else {
-            errorMessage = "夢のIDがありません。"
-            return
-        }
-        guard !userId.isEmpty else {
-            errorMessage = "ユーザーIDがありません。"
-            return
-        }
-            
-        // UIを「解釈中」の状態にする
-        await MainActor.run {
-            self.interpretingDreamId = dreamId
-            self.errorMessage = nil
-        }
-            
+    func interpretDream(dream: Dream, userId: String) async throws{
         do {
+            // 入力バリデーション
+            guard let dreamId = dream.id else {
+                throw AppError.missingDocumentId("夢")
+            }
+            guard !userId.isEmpty else {
+                throw AppError.invalidUserId
+            }
+            
+            // UIを「解釈中」の状態にする
+            await MainActor.run {
+                self.interpretingDreamId = dreamId
+                self.errorMessage = nil
+            }
+            
+            // deferでクリーンアップを保証（成功時もエラー時も必ず実行される）
+            // DreamService は @MainActor のため、ここでは同期的に状態をリセットする
+            defer {
+                self.interpretingDreamId = nil
+            }
+            
             // AIに渡すプロンプト（指示文）
             let prompt = """
             あなたは経験豊富な夢占いの専門家です。
@@ -117,7 +136,7 @@ class DreamService: ObservableObject {
             let response = try await model.generateContent(prompt)
                 
             guard let interpretation = response.text else {
-                throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "AIからの応答が空でした。"])
+                throw AppError.aiServiceError("AIからの応答が空でした。")
             }
                 
             // Firestoreに結果（interpretation）を保存
@@ -129,24 +148,31 @@ class DreamService: ObservableObject {
                 
         } catch {
             // エラーハンドリング
-            await MainActor.run {
-                self.errorMessage = "夢占いに失敗しました: \(error.localizedDescription)"
+            let appError: AppError
+            if let existingAppError = error as? AppError {
+                appError = existingAppError
+            } else {
+                appError = AppError.unknownError(error)
             }
-        }
+            ErrorLogger.logError(appError, context: "DreamService.interpretDream")
             
-        // UIを「解釈中」から元に戻す
-        await MainActor.run {
-            self.interpretingDreamId = nil
+            // UIにエラーを表示
+            await MainActor.run {
+                self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
+            }
+            
+            // エラーを再スローして呼び出し元に伝播
+            throw appError
         }
     }
     
     // 夢を更新 (編集)
     func updateDream(dream: Dream, newContent: String, resetInterpretation: Bool, userId: String) async throws {
         guard let dreamId = dream.id else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "夢のIDがありません"])
+            throw AppError.missingDocumentId("夢")
         }
         guard !userId.isEmpty else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "ユーザーIDがありません"])
+            throw AppError.invalidUserId
         }
         
         // 更新するデータを準備
