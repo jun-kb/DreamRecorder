@@ -191,6 +191,21 @@ struct DreamListView: View {
         } message: {
             Text(errorMessage)
         }
+        // パターンA: サービス層のerrorMessageを監視してalert表示
+        .onChange(of: dreamService.errorMessage) { _, newValue in
+            if let error = newValue {
+                errorMessage = error
+                showError = true
+                dreamService.errorMessage = nil
+            }
+        }
+        .onChange(of: reflectionService.errorMessage) { _, newValue in
+            if let error = newValue {
+                errorMessage = error
+                showError = true
+                reflectionService.errorMessage = nil
+            }
+        }
     }
     
     private func deleteDreams(at offsets: IndexSet) {
@@ -204,11 +219,21 @@ struct DreamListView: View {
                 do {
                     try await dreamService.deleteDream(dream, userId: userId)
                 } catch {
+                    // パターンB: View層でフロー全体を実行
+                    // 2. AppErrorに変換
+                    let appError: AppError
+                    if let existingAppError = error as? AppError {
+                        appError = existingAppError
+                    } else {
+                        appError = AppError.unknownError(error)
+                    }
+                    // 3. ログ記録
+                    ErrorLogger.logError(appError, context: "DreamListView.deleteDreams")
+                    // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
                     await MainActor.run {
-                        errorMessage = ErrorLogger.userFacingMessage(from: error)
+                        errorMessage = ErrorLogger.userFacingMessage(from: appError)
                         showError = true
                     }
-                    ErrorLogger.logError(error, context: "DreamListView.deleteDreams")
                 }
             }
         }
@@ -224,11 +249,21 @@ struct DreamListView: View {
                 do {
                     try await reflectionService.deleteReflection(reflection, userId: userId)
                 } catch {
+                    // パターンB: View層でフロー全体を実行
+                    // 2. AppErrorに変換
+                    let appError: AppError
+                    if let existingAppError = error as? AppError {
+                        appError = existingAppError
+                    } else {
+                        appError = AppError.unknownError(error)
+                    }
+                    // 3. ログ記録
+                    ErrorLogger.logError(appError, context: "DreamListView.deleteReflections")
+                    // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
                     await MainActor.run {
-                        errorMessage = ErrorLogger.userFacingMessage(from: error)
+                        errorMessage = ErrorLogger.userFacingMessage(from: appError)
                         showError = true
                     }
-                    ErrorLogger.logError(error, context: "DreamListView.deleteReflections")
                 }
             }
         }

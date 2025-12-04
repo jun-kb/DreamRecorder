@@ -64,8 +64,9 @@ struct DreamRow: View {
                         do {
                             try await dreamService.interpretDream(dream: dream, userId: userId)
                         } catch {
-                            // エラーはdreamServiceのerrorMessageに設定されるため、ここではログに記録のみ
-                            ErrorLogger.logError(error, context: "DreamRow.interpretDream")
+                            // パターンA: エラーはdreamServiceのerrorMessageに設定され、
+                            // DreamListViewのonChangeで表示されるため、ここでは何もしない
+                            // （ログ記録はサービス層で実行済み）
                         }
                     }
                 } label: {
