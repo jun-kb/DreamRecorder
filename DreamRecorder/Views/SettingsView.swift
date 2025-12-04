@@ -74,6 +74,12 @@ struct SettingsView: View {
         isLoggingOut = true
         
         Task {
+            defer {
+                Task { @MainActor in
+                    isLoggingOut = false
+                }
+            }
+            
             do {
                 try authManager.signOut()
             } catch {
@@ -87,7 +93,6 @@ struct SettingsView: View {
                 await MainActor.run {
                     errorMessage = ErrorLogger.userFacingMessage(from: appError)
                     showError = true
-                    isLoggingOut = false
                 }
             }
         }
