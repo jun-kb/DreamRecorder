@@ -114,10 +114,9 @@ class DreamService: ObservableObject {
         }
         
         // deferでクリーンアップを保証（成功時もエラー時も必ず実行される）
+        // DreamService は @MainActor のため、ここでは同期的に状態をリセットする
         defer {
-            Task { @MainActor in
-                self.interpretingDreamId = nil
-            }
+            self.interpretingDreamId = nil
         }
             
         do {
