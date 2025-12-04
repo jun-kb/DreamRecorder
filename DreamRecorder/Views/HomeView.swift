@@ -12,8 +12,8 @@ private enum AddSheet: Identifiable {
     }
 }
 
-// カレンダーと夢/日記リスト
-struct DreamListView: View {
+// ホーム画面（カレンダーと当日の夢/日記リスト）
+struct HomeView: View {
     @EnvironmentObject var dreamService: DreamService
     @EnvironmentObject var reflectionService: ReflectionService
     @EnvironmentObject var authManager: AuthManager
@@ -25,13 +25,12 @@ struct DreamListView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     
-    // 1. 選択された日付を管理するState
+    // 選択された日付を管理するState
     @State private var selectedDate: Date = Date()
     
-    // 2. 選択された日付に基づいて夢をフィルタリングする
+    // 選択された日付に基づいて夢をフィルタリングする
     private var filteredDreams: [Dream] {
         dreamService.dreams.filter { dream in
-            // 夢の日付(recordDate)と選択された日付(selectedDate)が同じ日かどうかを判定
             Calendar.current.isDate(dream.recordDate, inSameDayAs: selectedDate)
         }
     }
@@ -47,21 +46,20 @@ struct DreamListView: View {
     }
     
     var body: some View {
-        NavigationView {
-            // 3. カレンダーとリストを縦に並べる
+        NavigationStack {
             ZStack {
                 // 背景
                 Color.clear.dreamBackground()
                 
                 VStack(spacing: 0) {
-                    // 4. カレンダーUIの追加
+                    // カレンダーUIの追加
                     DatePicker(
                         "日付選択",
                         selection: $selectedDate,
                         displayedComponents: .date
                     )
                     .datePickerStyle(.graphical)
-                    .colorScheme(.dark) // カレンダーをダークモード表示
+                    .colorScheme(.dark)
                     .accentColor(.dreamAccent)
                     .padding(.horizontal)
                     .padding(.bottom, 8)
@@ -69,7 +67,7 @@ struct DreamListView: View {
                     .cornerRadius(20)
                     .padding()
                     
-                    // 5. フィルタリングされたリストの表示
+                    // フィルタリングされたリストの表示
                     ZStack {
                         // フィルタリングした結果、夢も日記もない場合に表示
                         if filteredDreams.isEmpty && filteredReflections.isEmpty && !isLoading {
@@ -80,7 +78,7 @@ struct DreamListView: View {
                                 Text("この日の記録はありません")
                                     .font(.dreamHeadline)
                                     .foregroundColor(.dreamTextSecondary)
-                                Text("右上の + ボタンから夢や日記を追加しましょう")
+                                Text("下の + ボタンから夢や日記を追加しましょう")
                                     .font(.dreamCaption)
                                     .foregroundColor(.dreamTextSecondary)
                             }
@@ -91,16 +89,16 @@ struct DreamListView: View {
                                 if !filteredDreams.isEmpty {
                                     Section(header: Text("夢").foregroundColor(.dreamTextSecondary)) {
                                         ForEach(filteredDreams) { dream in
-                                            Button{
+                                            Button {
                                                 self.dreamToEdit = dream
                                                 self.activeSheet = .dream
                                             } label: {
                                                 DreamRow(dream: dream)
                                             }
                                             .buttonStyle(.plain)
-                                            .listRowBackground(Color.clear) // リスト行の背景を透明に
-                                            .listRowSeparator(.hidden)      // 区切り線を消す
-                                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)) // 余白調整
+                                            .listRowBackground(Color.clear)
+                                            .listRowSeparator(.hidden)
+                                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                                         }
                                         .onDelete(perform: deleteDreams)
                                     }
@@ -109,7 +107,7 @@ struct DreamListView: View {
                                 if !filteredReflections.isEmpty {
                                     Section(header: Text("日記").foregroundColor(.dreamTextSecondary)) {
                                         ForEach(filteredReflections) { reflection in
-                                            Button{
+                                            Button {
                                                 self.reflectionToEdit = reflection
                                                 self.activeSheet = .reflection
                                             } label: {
@@ -124,8 +122,8 @@ struct DreamListView: View {
                                     }
                                 }
                             }
-                            .listStyle(.plain) // プレーンなリストスタイル
-                            .scrollContentBackground(.hidden) // リスト自体の背景を隠す
+                            .listStyle(.plain)
+                            .scrollContentBackground(.hidden)
                         }
                         
                         if isLoading {
@@ -133,12 +131,11 @@ struct DreamListView: View {
                                 .tint(.dreamAccent)
                         }
                     }
-                    // Listがカレンダーを押し出さないようにサイズを固定
                     .frame(maxHeight: .infinity)
                 }
             }
             .navigationTitle("夢の記録")
-            .navigationBarTitleDisplayMode(.inline) // タイトルを小さく表示（好みで）
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -183,15 +180,13 @@ struct DreamListView: View {
                 reflectionService.setupListener(userId: userId)
             }
         }
-        // ナビゲーションバーのスタイル調整（UIKitのappearanceを使う必要がある場合もあるが、簡易的に）
         .accentColor(.dreamAccent)
-        .preferredColorScheme(.dark) // ステータスバーとナビゲーションタイトルを白くする
+        .preferredColorScheme(.dark)
         .alert("エラー", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(errorMessage)
         }
-        // パターンA: サービス層のerrorMessageを監視してalert表示
         .onChange(of: dreamService.errorMessage) { _, newValue in
             if let error = newValue {
                 errorMessage = error
@@ -211,7 +206,6 @@ struct DreamListView: View {
     private func deleteDreams(at offsets: IndexSet) {
         guard let userId = authManager.userId else { return }
         
-        // フィルタリングされたリスト(filteredDreams)から削除対象の夢を取得
         let dreamsToDelete = offsets.map { filteredDreams[$0] }
         
         for dream in dreamsToDelete {
@@ -219,17 +213,13 @@ struct DreamListView: View {
                 do {
                     try await dreamService.deleteDream(dream, userId: userId)
                 } catch {
-                    // パターンB: View層でフロー全体を実行
-                    // 2. AppErrorに変換
                     let appError: AppError
                     if let existingAppError = error as? AppError {
                         appError = existingAppError
                     } else {
                         appError = AppError.unknownError(error)
                     }
-                    // 3. ログ記録
-                    ErrorLogger.logError(appError, context: "DreamListView.deleteDreams")
-                    // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
+                    ErrorLogger.logError(appError, context: "HomeView.deleteDreams")
                     await MainActor.run {
                         errorMessage = ErrorLogger.userFacingMessage(from: appError)
                         showError = true
@@ -249,17 +239,13 @@ struct DreamListView: View {
                 do {
                     try await reflectionService.deleteReflection(reflection, userId: userId)
                 } catch {
-                    // パターンB: View層でフロー全体を実行
-                    // 2. AppErrorに変換
                     let appError: AppError
                     if let existingAppError = error as? AppError {
                         appError = existingAppError
                     } else {
                         appError = AppError.unknownError(error)
                     }
-                    // 3. ログ記録
-                    ErrorLogger.logError(appError, context: "DreamListView.deleteReflections")
-                    // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
+                    ErrorLogger.logError(appError, context: "HomeView.deleteReflections")
                     await MainActor.run {
                         errorMessage = ErrorLogger.userFacingMessage(from: appError)
                         showError = true
@@ -269,3 +255,4 @@ struct DreamListView: View {
         }
     }
 }
+

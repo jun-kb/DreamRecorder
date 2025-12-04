@@ -14,7 +14,7 @@ struct SignInView: View {
             VStack(spacing: 30) {
                 Spacer()
                 
-                Image(uiImage: UIImage(named: "AppIcon") ?? UIImage()) // アプリアイコンを表示（もしあれば）
+                Image("AppIconImage")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 120, height: 120)
