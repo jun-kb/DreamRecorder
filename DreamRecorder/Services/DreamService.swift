@@ -100,26 +100,27 @@ class DreamService: ObservableObject {
 
     /// AI（Gemini）を使って夢を解釈し、結果をFirestoreに保存する
     func interpretDream(dream: Dream, userId: String) async throws{
-        guard let dreamId = dream.id else {
-            throw AppError.missingDocumentId("夢")
-        }
-        guard !userId.isEmpty else {
-            throw AppError.invalidUserId
-        }
-            
-        // UIを「解釈中」の状態にする
-        await MainActor.run {
-            self.interpretingDreamId = dreamId
-            self.errorMessage = nil
-        }
-        
-        // deferでクリーンアップを保証（成功時もエラー時も必ず実行される）
-        // DreamService は @MainActor のため、ここでは同期的に状態をリセットする
-        defer {
-            self.interpretingDreamId = nil
-        }
-            
         do {
+            // 入力バリデーション
+            guard let dreamId = dream.id else {
+                throw AppError.missingDocumentId("夢")
+            }
+            guard !userId.isEmpty else {
+                throw AppError.invalidUserId
+            }
+            
+            // UIを「解釈中」の状態にする
+            await MainActor.run {
+                self.interpretingDreamId = dreamId
+                self.errorMessage = nil
+            }
+            
+            // deferでクリーンアップを保証（成功時もエラー時も必ず実行される）
+            // DreamService は @MainActor のため、ここでは同期的に状態をリセットする
+            defer {
+                self.interpretingDreamId = nil
+            }
+            
             // AIに渡すプロンプト（指示文）
             let prompt = """
             あなたは経験豊富な夢占いの専門家です。
