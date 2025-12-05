@@ -23,6 +23,10 @@ class AuthManager: ObservableObject {
         try await Auth.auth().signInAnonymously()
     }
     
+    func signOut() throws {
+        try Auth.auth().signOut()
+    }
+    
     deinit {
         // リスナーを解除
         if let authHandle {
