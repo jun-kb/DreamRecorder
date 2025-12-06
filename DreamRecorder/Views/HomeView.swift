@@ -24,9 +24,25 @@ struct HomeView: View {
     @State private var reflectionToEdit: Reflection?
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var navigateToDailyDetail = false
+    @State private var detailDate: Date = Date()
     
     // 選択された日付を管理するState
     @State private var selectedDate: Date = Date()
+    
+    private var dateSelectionBinding: Binding<Date> {
+        Binding(
+            get: { selectedDate },
+            set: { newValue in
+                if Calendar.current.isDate(newValue, inSameDayAs: selectedDate) {
+                    detailDate = newValue
+                    navigateToDailyDetail = true
+                } else {
+                    selectedDate = newValue
+                }
+            }
+        )
+    }
     
     // 選択された日付に基づいて夢をフィルタリングする
     private var filteredDreams: [Dream] {
@@ -55,7 +71,7 @@ struct HomeView: View {
                     // カレンダーUIの追加
                     DatePicker(
                         "日付選択",
-                        selection: $selectedDate,
+                        selection: dateSelectionBinding,
                         displayedComponents: .date
                     )
                     .datePickerStyle(.graphical)
@@ -66,6 +82,21 @@ struct HomeView: View {
                     .background(Color.white.opacity(0.05))
                     .cornerRadius(20)
                     .padding()
+                    
+                    Button {
+                        detailDate = selectedDate
+                        navigateToDailyDetail = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.right.circle.fill")
+                            Text("選択した日を詳細表示")
+                            Spacer()
+                        }
+                        .font(.dreamCaption)
+                        .foregroundColor(.dreamAccent)
+                        .padding(.horizontal)
+                        .padding(.bottom, 4)
+                    }
                     
                     // フィルタリングされたリストの表示
                     ZStack {
@@ -136,6 +167,9 @@ struct HomeView: View {
             }
             .navigationTitle("夢の記録")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $navigateToDailyDetail) {
+                DailyDetailView(date: detailDate)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -255,4 +289,3 @@ struct HomeView: View {
         }
     }
 }
-
