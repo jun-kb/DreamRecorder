@@ -18,7 +18,6 @@ struct HomeView: View {
     @EnvironmentObject var reflectionService: ReflectionService
     @EnvironmentObject var authManager: AuthManager
     
-    @State private var showAddChoice = false
     @State private var activeSheet: AddSheet?
     @State private var dreamToEdit: Dream?
     @State private var reflectionToEdit: Reflection?
@@ -131,27 +130,26 @@ struct HomeView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        self.dreamToEdit = nil
-                        self.reflectionToEdit = nil
-                        self.showAddChoice = true
+                    Menu {
+                        Button {
+                            self.dreamToEdit = nil
+                            self.activeSheet = .dream
+                        } label: {
+                            Label("夢を追加", systemImage: "plus.circle")
+                        }
+                        
+                        Button {
+                            self.reflectionToEdit = nil
+                            self.activeSheet = .reflection
+                        } label: {
+                            Label("日記を追加", systemImage: "square.and.pencil")
+                        }
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 24))
                             .foregroundColor(.dreamAccent)
                     }
                 }
-            }
-            .confirmationDialog("追加する内容を選択", isPresented: $showAddChoice) {
-                Button("夢を追加") {
-                    self.dreamToEdit = nil
-                    self.activeSheet = .dream
-                }
-                Button("日記を追加") {
-                    self.reflectionToEdit = nil
-                    self.activeSheet = .reflection
-                }
-                Button("キャンセル", role: .cancel) { }
             }
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {

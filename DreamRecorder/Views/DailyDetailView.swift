@@ -1,20 +1,19 @@
 import SwiftUI
-
-private enum DailySheet: Identifiable {
-    case dream
-    case reflection
-    
-    var id: String {
-        switch self {
-        case .dream: return "dream"
-        case .reflection: return "reflection"
-        }
-    }
-}
+import UIKit
 
 private enum SlideDirection {
     case forward
     case backward
+}
+
+private struct SheetContext: Identifiable {
+    let id = UUID()
+    let type: SheetType
+}
+
+private enum SheetType {
+    case dream(Dream?)
+    case reflection(Reflection?)
 }
 
 struct DailyDetailView: View {
@@ -24,9 +23,7 @@ struct DailyDetailView: View {
     
     let date: Date
     
-    @State private var activeSheet: DailySheet?
-    @State private var dreamToEdit: Dream?
-    @State private var reflectionToEdit: Reflection?
+    @State private var sheetContext: SheetContext?
     @State private var dreamPendingDelete: Dream?
     @State private var reflectionPendingDelete: Reflection?
     @State private var showDreamDeleteConfirm = false
@@ -35,6 +32,7 @@ struct DailyDetailView: View {
     @State private var showError = false
     @State private var currentDate: Date
     @State private var slideDirection: SlideDirection = .forward
+    @State private var interpretationToShow: String?
     
     init(date: Date) {
         self.date = date
@@ -65,12 +63,37 @@ struct DailyDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .dream:
-                AddDreamView(recordDate: currentDate, dreamToEdit: dreamToEdit)
-            case .reflection:
-                AddReflectionView(recordDate: currentDate, reflectionToEdit: reflectionToEdit)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button {
+                        feedbackSelection()
+                        openDreamSheet(editing: nil)
+                    } label: {
+                        Label("夢を追加", systemImage: "plus.circle")
+                    }
+                    
+                    Button {
+                        feedbackSelection()
+                        openReflectionSheet(editing: nil)
+                    } label: {
+                        Label("日記を追加", systemImage: "square.and.pencil")
+                    }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.dreamAccent)
+                }
+            }
+        }
+        .sheet(item: $sheetContext) { context in
+            switch context.type {
+            case .dream(let target):
+                AddDreamView(recordDate: currentDate, dreamToEdit: target)
+                    .id(context.id)
+            case .reflection(let target):
+                AddReflectionView(recordDate: currentDate, reflectionToEdit: target)
+                    .id(context.id)
             }
         }
         .alert("エラー", isPresented: $showError) {
@@ -78,9 +101,35 @@ struct DailyDetailView: View {
         } message: {
             Text(errorMessage)
         }
+        .sheet(isPresented: Binding(get: { interpretationToShow != nil }, set: { if !$0 { interpretationToShow = nil } })) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("AI占い結果")
+                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                        .foregroundColor(.dreamText)
+                    Spacer()
+                    Button("閉じる") { interpretationToShow = nil }
+                        .font(.system(.callout, design: .rounded, weight: .medium))
+                        .foregroundColor(.dreamAccent)
+                }
+                
+                ScrollView {
+                    Text(interpretationToShow ?? "")
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundColor(.dreamText)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding()
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .background(Color.clear.dreamBackground().ignoresSafeArea())
+        }
         .confirmationDialog(
             "夢を削除しますか？",
-            isPresented: $showDreamDeleteConfirm
+            isPresented: $showDreamDeleteConfirm,
+            titleVisibility: .visible
         ) {
             Button("削除", role: .destructive) {
                 if let dream = dreamPendingDelete {
@@ -91,10 +140,13 @@ struct DailyDetailView: View {
             Button("キャンセル", role: .cancel) {
                 dreamPendingDelete = nil
             }
+        } message: {
+            Text("この操作は取り消せません。")
         }
         .confirmationDialog(
             "日記を削除しますか？",
-            isPresented: $showReflectionDeleteConfirm
+            isPresented: $showReflectionDeleteConfirm,
+            titleVisibility: .visible
         ) {
             Button("削除", role: .destructive) {
                 if let reflection = reflectionPendingDelete {
@@ -105,6 +157,8 @@ struct DailyDetailView: View {
             Button("キャンセル", role: .cancel) {
                 reflectionPendingDelete = nil
             }
+        } message: {
+            Text("この操作は取り消せません。")
         }
         .gesture(swipeGesture)
         .onChange(of: dreamService.errorMessage) { _, newValue in
@@ -220,12 +274,22 @@ struct DailyDetailView: View {
     
     private var dreamSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "夢") {
-                dreamToEdit = nil
-                activeSheet = .dream
-            }
-            
             if dreamsForDay.isEmpty {
+                HStack {
+                    Text("夢")
+                        .font(.system(.title2, design: .rounded, weight: .semibold))
+                        .foregroundColor(.dreamText)
+                    Spacer()
+                    Button {
+                        openDreamSheet(editing: nil)
+                    } label: {
+                        Label("夢を追加", systemImage: "plus.circle.fill")
+                            .font(.system(.callout, design: .rounded, weight: .medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.dreamAccent)
+                }
+                
                 Text("この日の夢の記録はありません")
                     .font(.dreamBody)
                     .foregroundColor(.dreamTextSecondary)
@@ -241,12 +305,23 @@ struct DailyDetailView: View {
     
     private var reflectionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "日記") {
-                reflectionToEdit = nil
-                activeSheet = .reflection
-            }
-            
             if reflectionsForDay.isEmpty {
+                HStack {
+                    Text("日記")
+                        .font(.system(.title2, design: .rounded, weight: .semibold))
+                        .foregroundColor(.dreamText)
+                    Spacer()
+                    Button {
+                        feedbackSelection()
+                        openReflectionSheet(editing: nil)
+                    } label: {
+                        Label("日記を追加", systemImage: "plus.circle.fill")
+                            .font(.system(.callout, design: .rounded, weight: .medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.dreamAccent)
+                }
+                
                 Text("この日の日記はまだありません")
                     .font(.dreamBody)
                     .foregroundColor(.dreamTextSecondary)
@@ -275,8 +350,8 @@ struct DailyDetailView: View {
             
             HStack(spacing: 12) {
                 Button {
-                    dreamToEdit = nil
-                    activeSheet = .dream
+                    feedbackSelection()
+                    openDreamSheet(editing: nil)
                 } label: {
                     Label("夢を追加", systemImage: "plus.circle.fill")
                         .font(.dreamCaption)
@@ -288,8 +363,8 @@ struct DailyDetailView: View {
                 .tint(.dreamAccent)
                 
                 Button {
-                    reflectionToEdit = nil
-                    activeSheet = .reflection
+                    feedbackSelection()
+                    openReflectionSheet(editing: nil)
                 } label: {
                     Label("日記を追加", systemImage: "square.and.pencil")
                         .font(.dreamCaption)
@@ -306,28 +381,73 @@ struct DailyDetailView: View {
         .cornerRadius(18)
     }
     
-    private func sectionHeader(title: String, addAction: @escaping () -> Void) -> some View {
-        HStack {
-            Text(title)
-                .font(.dreamHeadline)
-                .foregroundColor(.dreamText)
-            Spacer()
-            Button {
-                addAction()
-            } label: {
-                Label("\(title)を追加", systemImage: "plus.circle.fill")
-                    .font(.dreamCaption)
-            }
-            .buttonStyle(.bordered)
-            .tint(.dreamAccent)
-        }
-    }
-    
     private func dreamCard(_ dream: Dream) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("夢の記録")
-                .font(.dreamCaption)
-                .foregroundColor(.dreamTextSecondary)
+        let isInterpreting = dreamService.interpretingDreamId == dream.id
+        
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("夢")
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundColor(.dreamAccent)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.dreamAccent.opacity(0.18))
+                    .cornerRadius(12)
+                
+                Spacer()
+                
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await reinterpret(dream: dream) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkles")
+                            Text(dream.interpretation == nil ? "AI占い" : "再解釈")
+                        }
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(.dreamAccent)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.dreamAccent.opacity(0.18))
+                        .cornerRadius(14)
+                    }
+                    .disabled(isInterpreting)
+
+                    Menu {
+                        Button {
+                            feedbackSelection()
+                            openDreamSheet(editing: dream)
+                        } label: {
+                            Label("編集", systemImage: "pencil")
+                        }
+                        
+                        Button(role: .destructive) {
+                            feedbackSelection()
+                            dreamPendingDelete = dream
+                            showDreamDeleteConfirm = true
+                        } label: {
+                            Label("削除", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.dreamText)
+                    }
+                }
+            }
+            
+            if isInterpreting {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .tint(.dreamAccent)
+                        .scaleEffect(0.8)
+                    Text("占い中...")
+                        .font(.dreamCaption)
+                        .foregroundColor(.dreamAccent)
+                }
+                .padding(.vertical, 6)
+                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isInterpreting)
+            }
             
             Text(dream.content)
                 .font(.dreamBody)
@@ -340,63 +460,20 @@ struct DailyDetailView: View {
                         .foregroundColor(.dreamAccent)
                         .padding(.top, 2)
                     Text(interpretation)
-                        .font(.dreamCaption)
-                        .foregroundColor(.dreamText.opacity(0.9))
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundColor(.dreamText.opacity(0.95))
                         .fixedSize(horizontal: false, vertical: true)
+                        .onTapGesture {
+                            interpretationToShow = interpretation
+                        }
                 }
                 .padding(12)
-                .background(Color.dreamAccent.opacity(0.2))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.dreamAccent.opacity(0.3), lineWidth: 1)
-                )
-            } else if dreamService.interpretingDreamId == dream.id {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .tint(.dreamAccent)
-                        .scaleEffect(0.8)
-                    Text("夢を分析中...")
-                        .font(.dreamCaption)
-                        .foregroundColor(.dreamTextSecondary)
-                }
-            }
-            
-            HStack(spacing: 12) {
-                Button {
-                    dreamToEdit = dream
-                    activeSheet = .dream
-                } label: {
-                    Label("編集", systemImage: "pencil")
-                        .font(.dreamCaption)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.dreamAccent)
-                
-                Button {
-                    Task { await reinterpret(dream: dream) }
-                } label: {
-                    Label(dream.interpretation == nil ? "AIで占う" : "AIで再解釈", systemImage: "wand.and.stars")
-                        .font(.dreamCaption)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.dreamAccent)
-                .disabled(dreamService.interpretingDreamId == dream.id)
-                
-                Button(role: .destructive) {
-                    dreamPendingDelete = dream
-                    showDreamDeleteConfirm = true
-                } label: {
-                    Label("削除", systemImage: "trash")
-                        .font(.dreamCaption)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
+                        .background(Color.dreamAccent.opacity(0.2))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.dreamAccent.opacity(0.3), lineWidth: 1)
+                        )
             }
         }
         .padding(16)
@@ -410,39 +487,43 @@ struct DailyDetailView: View {
     }
     
     private func reflectionCard(_ reflection: Reflection) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("日記")
-                .font(.dreamCaption)
-                .foregroundColor(.dreamTextSecondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("日記")
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundColor(.dreamAccent)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.dreamAccent.opacity(0.18))
+                    .cornerRadius(12)
+                
+                Spacer()
+                
+                Menu {
+                    Button {
+                        feedbackSelection()
+                        openReflectionSheet(editing: reflection)
+                    } label: {
+                        Label("編集", systemImage: "square.and.pencil")
+                    }
+                    
+                    Button(role: .destructive) {
+                        feedbackSelection()
+                        reflectionPendingDelete = reflection
+                        showReflectionDeleteConfirm = true
+                    } label: {
+                        Label("削除", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.dreamText)
+                }
+            }
             
             Text(reflection.content)
                 .font(.dreamBody)
                 .foregroundColor(.dreamText)
-            
-            HStack(spacing: 12) {
-                Button {
-                    reflectionToEdit = reflection
-                    activeSheet = .reflection
-                } label: {
-                    Label("追記/編集", systemImage: "square.and.pencil")
-                        .font(.dreamCaption)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.dreamAccent)
-                
-                Button(role: .destructive) {
-                    reflectionPendingDelete = reflection
-                    showReflectionDeleteConfirm = true
-                } label: {
-                    Label("削除", systemImage: "trash")
-                        .font(.dreamCaption)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
         }
         .padding(16)
         .background(Color.dreamCard)
@@ -477,6 +558,19 @@ struct DailyDetailView: View {
         withAnimation(.easeInOut(duration: 0.25)) {
             currentDate = newDate
         }
+    }
+    
+    private func feedbackSelection() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+    }
+    
+    private func openDreamSheet(editing dream: Dream?) {
+        sheetContext = SheetContext(type: .dream(dream))
+    }
+    
+    private func openReflectionSheet(editing reflection: Reflection?) {
+        sheetContext = SheetContext(type: .reflection(reflection))
     }
     
     private func reinterpret(dream: Dream) async {
