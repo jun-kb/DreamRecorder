@@ -622,8 +622,8 @@ struct DailyDetailView: View {
     
     private static let monthDayWeekFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "MMMM d|EEE"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "M月d日（E）"
         return formatter
     }()
 }

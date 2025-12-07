@@ -368,21 +368,21 @@ private extension HomeView {
     
     private static let monthFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "MMMM yyyy"
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "y/MM"
         return formatter
     }()
     
     private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = Locale(identifier: "ja_JP")
         formatter.dateFormat = "d"
         return formatter
     }()
     
     private static let weekdaySymbols: [String] = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = Locale(identifier: "ja_JP")
         return formatter.shortWeekdaySymbols.map { $0.uppercased() }
     }()
 }
