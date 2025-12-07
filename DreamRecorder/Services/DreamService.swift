@@ -148,12 +148,7 @@ class DreamService: ObservableObject {
                 
         } catch {
             // エラーハンドリング
-            let appError: AppError
-            if let existingAppError = error as? AppError {
-                appError = existingAppError
-            } else {
-                appError = AppError.unknownError(error)
-            }
+            let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "DreamService.interpretDream")
             
             // UIにエラーを表示

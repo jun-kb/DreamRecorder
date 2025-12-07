@@ -1,9 +1,57 @@
 import Foundation
 import OSLog
 
+/// エラー分類時のデフォルトタイプを指定
+enum ErrorContext {
+    case network    // Firestore、API通信など
+    case ai         // AI処理（Gemini API等）
+    case audio      // オーディオセッション
+    case general    // 汎用（unknownErrorにフォールバック）
+}
+
 /// エラーロギングを一元管理するユーティリティ
 struct ErrorLogger {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "DreamRecorder", category: "Error")
+    
+    /// 汎用エラーをAppErrorに分類する
+    /// - Parameters:
+    ///   - error: 分類するエラー
+    ///   - context: エラーが発生したコンテキスト（デフォルトのエラータイプを決定）
+    /// - Returns: 適切に分類されたAppError
+    static func classify(_ error: Error, context: ErrorContext = .general) -> AppError {
+        // すでにAppErrorならそのまま返す
+        if let appError = error as? AppError {
+            return appError
+        }
+        
+        // URLErrorはネットワークエラーとして分類
+        if let urlError = error as? URLError {
+            return .networkError(urlError)
+        }
+        
+        // NSErrorのドメインで判定
+        let nsError = error as NSError
+        switch nsError.domain {
+        case NSURLErrorDomain:
+            return .networkError(error)
+        case NSCocoaErrorDomain where nsError.code == NSFileReadCorruptFileError:
+            return .decodingError(error)
+        default:
+            break
+        }
+        
+        // コンテキストに応じたデフォルト分類
+        switch context {
+        case .network:
+            return .networkError(error)
+        case .ai:
+            return .aiServiceError(error.localizedDescription)
+        case .audio:
+            return .audioSessionError(error)
+        case .general:
+            return .unknownError(error)
+        }
+    }
     
     /// エラーをログに記録する
     /// - Parameters:

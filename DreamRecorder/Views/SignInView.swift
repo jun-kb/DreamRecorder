@@ -80,12 +80,7 @@ struct SignInView: View {
         do {
             try await authManager.signInAnonymously()
         } catch {
-            let appError: AppError
-            if let existingAppError = error as? AppError {
-                appError = existingAppError
-            } else {
-                appError = AppError.networkError(error)
-            }
+            let appError = ErrorLogger.classify(error, context: .network)
             ErrorLogger.logError(appError, context: "SignInView.signIn")
             errorMessage = ErrorLogger.userFacingMessage(from: appError)
         }

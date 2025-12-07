@@ -83,12 +83,7 @@ struct SettingsView: View {
             do {
                 try authManager.signOut()
             } catch {
-                let appError: AppError
-                if let existingAppError = error as? AppError {
-                    appError = existingAppError
-                } else {
-                    appError = AppError.unknownError(error)
-                }
+                let appError = ErrorLogger.classify(error, context: .network)
                 ErrorLogger.logError(appError, context: "SettingsView.logout")
                 await MainActor.run {
                     errorMessage = ErrorLogger.userFacingMessage(from: appError)

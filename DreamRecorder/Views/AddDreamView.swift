@@ -289,15 +289,8 @@ struct AddDreamView: View {
                 dismiss()
             }
         } catch {
-            // パターンB: View層でフロー全体を実行
-            // 2. AppErrorに変換
-            let appError: AppError
-            if let existingAppError = error as? AppError {
-                appError = existingAppError
-            } else {
-                appError = AppError.unknownError(error)
-            }
-            // 3. ログ記録
+            // AppErrorに分類してログ記録
+            let appError = ErrorLogger.classify(error, context: .network)
             ErrorLogger.logError(appError, context: "AddDreamView.performSave")
             // 4-6. ユーザー向けメッセージ取得 → 設定 → alert表示
             await MainActor.run {
@@ -342,12 +335,7 @@ struct AddDreamView: View {
             }
                 
         } catch {
-            let appError: AppError
-            if let existingAppError = error as? AppError {
-                appError = existingAppError
-            } else {
-                appError = AppError.unknownError(error)
-            }
+            let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "AddDreamView.refineDreamContent")
             await MainActor.run {
                 errorMessage = ErrorLogger.userFacingMessage(from: appError)
