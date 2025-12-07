@@ -30,20 +30,6 @@ struct HomeView: View {
     // 選択された日付を管理するState
     @State private var selectedDate: Date = Date()
     
-    private var dateSelectionBinding: Binding<Date> {
-        Binding(
-            get: { selectedDate },
-            set: { newValue in
-                if Calendar.current.isDate(newValue, inSameDayAs: selectedDate) {
-                    detailDate = newValue
-                    navigateToDailyDetail = true
-                } else {
-                    selectedDate = newValue
-                }
-            }
-        )
-    }
-    
     // 選択された日付に基づいて夢をフィルタリングする
     private var filteredDreams: [Dream] {
         dreamService.dreams.filter { dream in
@@ -71,7 +57,7 @@ struct HomeView: View {
                     // カレンダーUIの追加
                     DatePicker(
                         "日付選択",
-                        selection: dateSelectionBinding,
+                        selection: $selectedDate,
                         displayedComponents: .date
                     )
                     .datePickerStyle(.graphical)
@@ -83,20 +69,22 @@ struct HomeView: View {
                     .cornerRadius(20)
                     .padding()
                     
-                    Button {
-                        detailDate = selectedDate
-                        navigateToDailyDetail = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.right.circle.fill")
-                            Text("選択した日を詳細表示")
-                            Spacer()
+                    HStack {
+                        Text("夢")
+                            .font(.dreamBody)
+                            .foregroundColor(.dreamText)
+                        Spacer()
+                        Button {
+                            detailDate = selectedDate
+                            navigateToDailyDetail = true
+                        } label: {
+                            Label("詳細を見る", systemImage: "arrow.right.circle.fill")
+                                .font(.dreamBody)
+                                .foregroundColor(.dreamAccent)
                         }
-                        .font(.dreamCaption)
-                        .foregroundColor(.dreamAccent)
-                        .padding(.horizontal)
-                        .padding(.bottom, 4)
                     }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
                     
                     // フィルタリングされたリストの表示
                     ZStack {
@@ -118,13 +106,13 @@ struct HomeView: View {
                             // フィルタリングされた夢/日記のリスト
                             List {
                                 if !filteredDreams.isEmpty {
-                                    Section(header: Text("夢").foregroundColor(.dreamTextSecondary)) {
+                                    Section {
                                         ForEach(filteredDreams) { dream in
                                             Button {
                                                 self.dreamToEdit = dream
                                                 self.activeSheet = .dream
                                             } label: {
-                                                DreamRow(dream: dream)
+                                                CompactDreamRow(dream: dream)
                                             }
                                             .buttonStyle(.plain)
                                             .listRowBackground(Color.clear)
@@ -132,7 +120,7 @@ struct HomeView: View {
                                             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                                         }
                                         .onDelete(perform: deleteDreams)
-                                    }
+                                    } header: { EmptyView() }
                                 }
                                 
                                 if !filteredReflections.isEmpty {
@@ -142,7 +130,7 @@ struct HomeView: View {
                                                 self.reflectionToEdit = reflection
                                                 self.activeSheet = .reflection
                                             } label: {
-                                                ReflectionRow(reflection: reflection)
+                                                CompactReflectionRow(reflection: reflection)
                                             }
                                             .buttonStyle(.plain)
                                             .listRowBackground(Color.clear)
@@ -261,9 +249,9 @@ struct HomeView: View {
                 }
             }
         }
-    }
-    
-    private func deleteReflections(at offsets: IndexSet) {
+}
+
+private func deleteReflections(at offsets: IndexSet) {
         guard let userId = authManager.userId else { return }
         
         let reflectionsToDelete = offsets.map { filteredReflections[$0] }
@@ -287,5 +275,54 @@ struct HomeView: View {
                 }
             }
         }
+    }
+}
+
+// コンパクト表示用の行（1行のみ表示）
+private struct CompactDreamRow: View {
+    let dream: Dream
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(dream.recordDate, style: .date)
+                .font(.dreamCaption)
+                .foregroundColor(.dreamTextSecondary)
+            Text(dream.content)
+                .font(.dreamBody)
+                .foregroundColor(.dreamText)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.dreamCard)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+    }
+}
+
+private struct CompactReflectionRow: View {
+    let reflection: Reflection
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(reflection.recordDate, style: .date)
+                .font(.dreamCaption)
+                .foregroundColor(.dreamTextSecondary)
+            Text(reflection.content)
+                .font(.dreamBody)
+                .foregroundColor(.dreamText)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.dreamCard)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
     }
 }
