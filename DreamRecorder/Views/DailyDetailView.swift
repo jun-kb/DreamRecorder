@@ -16,6 +16,11 @@ private enum SheetType {
     case reflection(Reflection?)
 }
 
+private enum SwipeThreshold {
+    static let minimumDistance: CGFloat = 30
+    static let triggerDistance: CGFloat = 40
+}
+
 struct DailyDetailView: View {
     @EnvironmentObject var dreamService: DreamService
     @EnvironmentObject var reflectionService: ReflectionService
@@ -178,16 +183,16 @@ struct DailyDetailView: View {
     }
     
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 30)
+        DragGesture(minimumDistance: SwipeThreshold.minimumDistance)
             .onEnded { value in
                 let horizontal = value.translation.width
                 let vertical = value.translation.height
                 
                 guard abs(horizontal) > abs(vertical) else { return }
                 
-                if horizontal < -40 {
+                if horizontal < -SwipeThreshold.triggerDistance {
                     shiftDay(by: 1)
-                } else if horizontal > 40 {
+                } else if horizontal > SwipeThreshold.triggerDistance {
                     shiftDay(by: -1)
                 }
             }
@@ -577,21 +582,42 @@ struct DailyDetailView: View {
         guard let userId = authManager.userId else { return }
         do {
             try await dreamService.interpretDream(dream: dream, userId: userId)
-        } catch { }
+        } catch {
+            let appError = ErrorLogger.classify(error, context: .ai)
+            ErrorLogger.logError(appError, context: "DailyDetailView.reinterpret")
+            await MainActor.run {
+                errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                showError = true
+            }
+        }
     }
     
     private func deleteDream(_ dream: Dream) async {
         guard let userId = authManager.userId else { return }
         do {
             try await dreamService.deleteDream(dream, userId: userId)
-        } catch { }
+        } catch {
+            let appError = ErrorLogger.classify(error, context: .network)
+            ErrorLogger.logError(appError, context: "DailyDetailView.deleteDream")
+            await MainActor.run {
+                errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                showError = true
+            }
+        }
     }
     
     private func deleteReflection(_ reflection: Reflection) async {
         guard let userId = authManager.userId else { return }
         do {
             try await reflectionService.deleteReflection(reflection, userId: userId)
-        } catch { }
+        } catch {
+            let appError = ErrorLogger.classify(error, context: .network)
+            ErrorLogger.logError(appError, context: "DailyDetailView.deleteReflection")
+            await MainActor.run {
+                errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                showError = true
+            }
+        }
     }
     
     private static let monthDayWeekFormatter: DateFormatter = {

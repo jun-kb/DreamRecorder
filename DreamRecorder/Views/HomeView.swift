@@ -204,12 +204,7 @@ struct HomeView: View {
                 do {
                     try await dreamService.deleteDream(dream, userId: userId)
                 } catch {
-                    let appError: AppError
-                    if let existingAppError = error as? AppError {
-                        appError = existingAppError
-                    } else {
-                        appError = AppError.unknownError(error)
-                    }
+                    let appError = ErrorLogger.classify(error, context: .network)
                     ErrorLogger.logError(appError, context: "HomeView.deleteDreams")
                     await MainActor.run {
                         errorMessage = ErrorLogger.userFacingMessage(from: appError)
@@ -218,9 +213,9 @@ struct HomeView: View {
                 }
             }
         }
-}
-
-private func deleteReflections(at offsets: IndexSet) {
+    }
+    
+    private func deleteReflections(at offsets: IndexSet) {
         guard let userId = authManager.userId else { return }
         
         let reflectionsToDelete = offsets.map { filteredReflections[$0] }
@@ -230,12 +225,7 @@ private func deleteReflections(at offsets: IndexSet) {
                 do {
                     try await reflectionService.deleteReflection(reflection, userId: userId)
                 } catch {
-                    let appError: AppError
-                    if let existingAppError = error as? AppError {
-                        appError = existingAppError
-                    } else {
-                        appError = AppError.unknownError(error)
-                    }
+                    let appError = ErrorLogger.classify(error, context: .network)
                     ErrorLogger.logError(appError, context: "HomeView.deleteReflections")
                     await MainActor.run {
                         errorMessage = ErrorLogger.userFacingMessage(from: appError)
