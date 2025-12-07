@@ -12,6 +12,11 @@ private enum DailySheet: Identifiable {
     }
 }
 
+private enum SlideDirection {
+    case forward
+    case backward
+}
+
 struct DailyDetailView: View {
     @EnvironmentObject var dreamService: DreamService
     @EnvironmentObject var reflectionService: ReflectionService
@@ -29,6 +34,7 @@ struct DailyDetailView: View {
     @State private var errorMessage = ""
     @State private var showError = false
     @State private var currentDate: Date
+    @State private var slideDirection: SlideDirection = .forward
     
     init(date: Date) {
         self.date = date
@@ -48,7 +54,77 @@ struct DailyDetailView: View {
     }
     
     var body: some View {
-        let swipeGesture = DragGesture(minimumDistance: 30)
+        ZStack {
+            Color.clear.dreamBackground()
+                .ignoresSafeArea()
+            
+            ZStack {
+                contentView
+                    .id(currentDate)
+                    .transition(transition(for: slideDirection))
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .dream:
+                AddDreamView(recordDate: currentDate, dreamToEdit: dreamToEdit)
+            case .reflection:
+                AddReflectionView(recordDate: currentDate, reflectionToEdit: reflectionToEdit)
+            }
+        }
+        .alert("エラー", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
+        .confirmationDialog(
+            "夢を削除しますか？",
+            isPresented: $showDreamDeleteConfirm
+        ) {
+            Button("削除", role: .destructive) {
+                if let dream = dreamPendingDelete {
+                    Task { await deleteDream(dream) }
+                }
+                dreamPendingDelete = nil
+            }
+            Button("キャンセル", role: .cancel) {
+                dreamPendingDelete = nil
+            }
+        }
+        .confirmationDialog(
+            "日記を削除しますか？",
+            isPresented: $showReflectionDeleteConfirm
+        ) {
+            Button("削除", role: .destructive) {
+                if let reflection = reflectionPendingDelete {
+                    Task { await deleteReflection(reflection) }
+                }
+                reflectionPendingDelete = nil
+            }
+            Button("キャンセル", role: .cancel) {
+                reflectionPendingDelete = nil
+            }
+        }
+        .gesture(swipeGesture)
+        .onChange(of: dreamService.errorMessage) { _, newValue in
+            if let error = newValue {
+                errorMessage = error
+                showError = true
+                dreamService.errorMessage = nil
+            }
+        }
+        .onChange(of: reflectionService.errorMessage) { _, newValue in
+            if let error = newValue {
+                errorMessage = error
+                showError = true
+                reflectionService.errorMessage = nil
+            }
+        }
+    }
+    
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 30)
             .onEnded { value in
                 let horizontal = value.translation.width
                 let vertical = value.translation.height
@@ -61,153 +137,85 @@ struct DailyDetailView: View {
                     shiftDay(by: -1)
                 }
             }
-        
-        let base = AnyView(contentView)
-        let withNav = AnyView(
-            base
-                .navigationTitle("日別の記録")
-                .navigationBarTitleDisplayMode(.inline)
-        )
-        
-        let withSheet = AnyView(
-            withNav.sheet(item: $activeSheet) { sheet in
-                switch sheet {
-                case .dream:
-                    AddDreamView(recordDate: currentDate, dreamToEdit: dreamToEdit)
-                case .reflection:
-                    AddReflectionView(recordDate: currentDate, reflectionToEdit: reflectionToEdit)
-                }
-            }
-        )
-        
-        let withAlert = AnyView(
-            withSheet.alert("エラー", isPresented: $showError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(errorMessage)
-            }
-        )
-        
-        let withDreamDialog = AnyView(
-            withAlert.confirmationDialog(
-                "夢を削除しますか？",
-                isPresented: $showDreamDeleteConfirm
-            ) {
-                Button("削除", role: .destructive) {
-                    if let dream = dreamPendingDelete {
-                        Task { await deleteDream(dream) }
-                    }
-                    dreamPendingDelete = nil
-                }
-                Button("キャンセル", role: .cancel) {
-                    dreamPendingDelete = nil
-                }
-            }
-        )
-        
-        let withReflectionDialog = AnyView(
-            withDreamDialog.confirmationDialog(
-                "日記を削除しますか？",
-                isPresented: $showReflectionDeleteConfirm
-            ) {
-                Button("削除", role: .destructive) {
-                    if let reflection = reflectionPendingDelete {
-                        Task { await deleteReflection(reflection) }
-                    }
-                    reflectionPendingDelete = nil
-                }
-                Button("キャンセル", role: .cancel) {
-                    reflectionPendingDelete = nil
-                }
-            }
-        )
-        
-        let withGesture = AnyView(withReflectionDialog.gesture(swipeGesture))
-        
-        let withDreamChange = AnyView(
-            withGesture.onChange(of: dreamService.errorMessage) { _, newValue in
-                if let error = newValue {
-                    errorMessage = error
-                    showError = true
-                    dreamService.errorMessage = nil
-                }
-            }
-        )
-        
-        let finalView = AnyView(
-            withDreamChange.onChange(of: reflectionService.errorMessage) { _, newValue in
-                if let error = newValue {
-                    errorMessage = error
-                    showError = true
-                    reflectionService.errorMessage = nil
-                }
-            }
-        )
-        
-        return finalView
     }
     
     private var contentView: some View {
-        ZStack {
-            Color.clear.dreamBackground()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    
-                    if hasAnyContent {
-                        VStack(spacing: 16) {
-                            dreamSection
-                            reflectionSection
-                        }
-                    } else {
-                        emptyState
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                header
+                
+                if hasAnyContent {
+                    VStack(spacing: 16) {
+                        dreamSection
+                        reflectionSection
                     }
-                    
-                    Spacer(minLength: 32)
+                } else {
+                    emptyState
                 }
-                .padding(.horizontal)
-                .padding(.top)
+                
+                Spacer(minLength: 32)
             }
+            .padding(.horizontal)
+            .padding(.top)
         }
     }
     
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(Self.dateFormatter.string(from: currentDate))
-                .font(.dreamHeadline)
-                .foregroundColor(.dreamText)
-            Text("この日の夢と日記をまとめて確認できます。左右スワイプで日付移動。")
-                .font(.dreamCaption)
-                .foregroundColor(.dreamTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-            
-            HStack {
-                Button {
-                    shiftDay(by: -1)
-                } label: {
-                    Label("前日", systemImage: "chevron.left")
-                        .font(.dreamCaption)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Color.dreamCard)
-                        .cornerRadius(12)
-                }
+        VStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.white.opacity(0.04))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 8)
                 
-                Spacer()
-                
-                Button {
-                    shiftDay(by: 1)
-                } label: {
-                    Label("翌日", systemImage: "chevron.right")
-                        .font(.dreamCaption)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Color.dreamCard)
-                        .cornerRadius(12)
+                HStack {
+                    navigationArrow(direction: -1, icon: "chevron.left")
+                    Spacer()
+                    navigationArrow(direction: 1, icon: "chevron.right")
                 }
+                .padding(.horizontal, 14)
+                
+                Text(formattedDateString)
+                    .font(.system(size: 20, weight: .regular, design: .rounded))
+                    .foregroundColor(.dreamText)
+                    .padding(.horizontal, 64)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+                    .allowsHitTesting(false)
             }
+            .frame(maxWidth: .infinity)
         }
+    }
+    
+    private func navigationArrow(direction: Int, icon: String) -> some View {
+        Button {
+            shiftDay(by: direction)
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.dreamAccent)
+                .padding(10)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var formattedDateString: String {
+        let dateString = Self.monthDayWeekFormatter.string(from: currentDate)
+        let components = dateString.split(separator: "|").map(String.init)
+        guard components.count == 2 else { return dateString }
+        
+        let weekdayUpper = components[1].uppercased()
+        return "\(components[0]), \(weekdayUpper)"
     }
     
     private var dreamSection: some View {
@@ -446,9 +454,29 @@ struct DailyDetailView: View {
         .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
     }
     
+    private func transition(for direction: SlideDirection) -> AnyTransition {
+        switch direction {
+        case .forward:
+            return .asymmetric(
+                insertion: .move(edge: .trailing),
+                removal: .move(edge: .leading)
+            )
+        case .backward:
+            return .asymmetric(
+                insertion: .move(edge: .leading),
+                removal: .move(edge: .trailing)
+            )
+        }
+    }
+    
     private func shiftDay(by value: Int) {
+        guard value != 0 else { return }
+        slideDirection = value > 0 ? .forward : .backward
         guard let newDate = Calendar.current.date(byAdding: .day, value: value, to: currentDate) else { return }
-        currentDate = newDate
+        
+        withAnimation(.easeInOut(duration: 0.25)) {
+            currentDate = newDate
+        }
     }
     
     private func reinterpret(dream: Dream) async {
@@ -472,11 +500,10 @@ struct DailyDetailView: View {
         } catch { }
     }
     
-    private static let dateFormatter: DateFormatter = {
+    private static let monthDayWeekFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMMM d|EEE"
         return formatter
     }()
 }
