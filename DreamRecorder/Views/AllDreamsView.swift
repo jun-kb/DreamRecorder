@@ -25,26 +25,29 @@ private enum SortOrder: String, CaseIterable {
 // MARK: - ListItem (統合型)
 
 /// 夢と日記を統一的に扱うためのラッパー型
-private enum ListItem: Identifiable {
-    case dream(Dream)
-    case reflection(Reflection)
+/// structを使用してIDを作成時に固定し、ナビゲーションの安定性を確保
+private struct ListItem: Identifiable {
+    let id: String
+    let recordDate: Date
+    let content: ListItemContent
     
-    var id: String {
-        switch self {
-        case .dream(let dream):
-            return "dream-\(dream.id ?? UUID().uuidString)"
-        case .reflection(let reflection):
-            return "reflection-\(reflection.id ?? UUID().uuidString)"
-        }
+    enum ListItemContent {
+        case dream(Dream)
+        case reflection(Reflection)
     }
     
-    var recordDate: Date {
-        switch self {
-        case .dream(let dream):
-            return dream.recordDate
-        case .reflection(let reflection):
-            return reflection.recordDate
-        }
+    init(dream: Dream) {
+        // IDを作成時に固定（dream.idがnilの場合は内容のハッシュ値を使用）
+        self.id = "dream-\(dream.id ?? "stable-\(dream.content.hashValue)-\(Int(dream.recordDate.timeIntervalSince1970))")"
+        self.recordDate = dream.recordDate
+        self.content = .dream(dream)
+    }
+    
+    init(reflection: Reflection) {
+        // IDを作成時に固定（reflection.idがnilの場合は内容のハッシュ値を使用）
+        self.id = "reflection-\(reflection.id ?? "stable-\(reflection.content.hashValue)-\(Int(reflection.recordDate.timeIntervalSince1970))")"
+        self.recordDate = reflection.recordDate
+        self.content = .reflection(reflection)
     }
 }
 
@@ -78,12 +81,12 @@ struct AllDreamsView: View {
         // フィルター適用
         switch selectedFilter {
         case .all:
-            items = dreamService.dreams.map { .dream($0) }
-                  + reflectionService.reflections.map { .reflection($0) }
+            items = dreamService.dreams.map { ListItem(dream: $0) }
+                  + reflectionService.reflections.map { ListItem(reflection: $0) }
         case .dreams:
-            items = dreamService.dreams.map { .dream($0) }
+            items = dreamService.dreams.map { ListItem(dream: $0) }
         case .reflections:
-            items = reflectionService.reflections.map { .reflection($0) }
+            items = reflectionService.reflections.map { ListItem(reflection: $0) }
         }
         
         // ソート適用
@@ -286,7 +289,7 @@ private extension AllDreamsView {
     /// リスト行の表示
     @ViewBuilder
     func listRow(for item: ListItem) -> some View {
-        switch item {
+        switch item.content {
         case .dream(let dream):
             AllDreamsListRow(
                 type: .dream,
