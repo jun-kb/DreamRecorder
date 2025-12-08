@@ -162,23 +162,13 @@ private extension AllDreamsView {
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
             
-            // ソートボタン
+            // ソートボタン（タップで切り替え）
             HStack {
                 Spacer()
                 
-                Menu {
-                    ForEach(SortOrder.allCases, id: \.self) { order in
-                        Button {
-                            sortOrder = order
-                        } label: {
-                            HStack {
-                                Text(order.rawValue)
-                                if sortOrder == order {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
+                Button {
+                    // タップで新しい順↔古い順を切り替え
+                    sortOrder = (sortOrder == .newest) ? .oldest : .newest
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: sortOrder.icon)
@@ -326,6 +316,14 @@ private struct AllDreamsListRow: View {
     let content: String
     let recordDate: Date
     
+    /// 日付フォーマッター（短い形式: 2025/12/06）
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "yyyy/MM/dd"
+        return formatter
+    }()
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -358,7 +356,7 @@ private struct AllDreamsListRow: View {
                 .lineLimit(2)
             
             HStack {
-                Text(recordDate, style: .date)
+                Text(Self.dateFormatter.string(from: recordDate))
                     .font(.dreamCaption)
                     .foregroundColor(.dreamTextSecondary)
                 Spacer()
