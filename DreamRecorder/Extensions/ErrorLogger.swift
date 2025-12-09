@@ -6,6 +6,7 @@ enum ErrorContext {
     case network    // Firestore、API通信など
     case ai         // AI処理（Gemini API等）
     case audio      // オーディオセッション
+    case auth       // 認証処理（Google Sign-In等）
     case general    // 汎用（unknownErrorにフォールバック）
 }
 
@@ -22,6 +23,11 @@ struct ErrorLogger {
         // すでにAppErrorならそのまま返す
         if let appError = error as? AppError {
             return appError
+        }
+        
+        // AuthErrorは認証エラーとして分類
+        if let authError = error as? AuthError {
+            return .authError(authError.localizedDescription)
         }
         
         // URLErrorはネットワークエラーとして分類
@@ -48,6 +54,8 @@ struct ErrorLogger {
             return .aiServiceError(error.localizedDescription)
         case .audio:
             return .audioSessionError(error)
+        case .auth:
+            return .authError(error.localizedDescription)
         case .general:
             return .unknownError(error)
         }

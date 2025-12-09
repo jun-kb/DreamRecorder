@@ -9,6 +9,7 @@ enum AppError: LocalizedError {
     case decodingError(Error)
     case aiServiceError(String)
     case audioSessionError(Error)
+    case authError(String) // 認証処理エラー（Google Sign-In等）
     case unknownError(Error)
     
     var errorDescription: String? {
@@ -27,6 +28,8 @@ enum AppError: LocalizedError {
             return "AIサービスのエラー: \(message)"
         case .audioSessionError(let error):
             return "オーディオセッションのエラー: \(error.localizedDescription)"
+        case .authError(let message):
+            return message
         case .unknownError(let error):
             return "予期しないエラーが発生しました: \(error.localizedDescription)"
         }
@@ -48,6 +51,8 @@ enum AppError: LocalizedError {
             return message
         case .audioSessionError(let error):
             return "オーディオセッションの設定に失敗しました。詳細: \(error.localizedDescription)"
+        case .authError(let message):
+            return message
         case .unknownError(let error):
             return "予期しないエラーが発生しました。詳細: \(error.localizedDescription)"
         }

@@ -297,6 +297,7 @@ private func callAI() async {
 | `.network` | Firestore操作、API通信 |
 | `.ai` | Gemini API呼び出し |
 | `.audio` | 音声認識、オーディオセッション |
+| `.auth` | 認証処理（Google Sign-In、ログアウト等） |
 | `.general` | その他（デフォルト） |
 
 ### 標準的な使用パターン
@@ -332,6 +333,7 @@ do {
 | `authenticationRequired` | 認証が必要 | 直接使用 |
 | `aiServiceError` | AI処理エラー | `.ai` |
 | `audioSessionError` | 音声セッションエラー | `.audio` |
+| `authError` | 認証処理エラー（Google Sign-In等） | `.auth` |
 | `unknownError` | 不明なエラー | `.general` |
 
 ### 直接AppErrorを使用する場合
