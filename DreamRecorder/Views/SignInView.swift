@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 簡易版・匿名ログイン
+// サインイン画面（Google / 匿名ログイン対応）
 struct SignInView: View {
     @ObservedObject var authManager: AuthManager
     @State private var isLoading = false
@@ -41,19 +41,55 @@ struct SignInView: View {
                     ProgressView()
                         .tint(.dreamAccent)
                 } else {
-                    Button {
-                        Task {
-                            await signIn()
-                        }
-                    } label: {
-                        Text("はじめる")
-                            .font(.dreamHeadline)
-                            .foregroundColor(.white)
+                    VStack(spacing: 16) {
+                        // Google サインインボタン
+                        Button {
+                            Task {
+                                await signInWithGoogle()
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "g.circle.fill")
+                                    .font(.title2)
+                                Text("Googleでサインイン")
+                                    .font(.dreamHeadline)
+                            }
+                            .foregroundColor(.black)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.dreamAccent)
+                            .background(Color.white)
                             .cornerRadius(16)
-                            .shadow(color: .dreamAccent.opacity(0.4), radius: 10, x: 0, y: 5)
+                            .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
+                        }
+                        
+                        // 区切り線
+                        HStack {
+                            Rectangle()
+                                .fill(Color.dreamTextSecondary.opacity(0.3))
+                                .frame(height: 1)
+                            Text("または")
+                                .font(.dreamCaption)
+                                .foregroundColor(.dreamTextSecondary)
+                            Rectangle()
+                                .fill(Color.dreamTextSecondary.opacity(0.3))
+                                .frame(height: 1)
+                        }
+                        
+                        // 匿名ログインボタン
+                        Button {
+                            Task {
+                                await signInAnonymously()
+                            }
+                        } label: {
+                            Text("ログインせずに始める")
+                                .font(.dreamHeadline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.dreamAccent)
+                                .cornerRadius(16)
+                                .shadow(color: .dreamAccent.opacity(0.4), radius: 10, x: 0, y: 5)
+                        }
                     }
                     .padding(.horizontal, 40)
                 }
@@ -71,7 +107,24 @@ struct SignInView: View {
         }
     }
     
-    private func signIn() async {
+    // MARK: - Sign-In Methods
+    
+    private func signInWithGoogle() async {
+        isLoading = true
+        errorMessage = nil
+        defer {
+            isLoading = false
+        }
+        do {
+            try await authManager.signInWithGoogle()
+        } catch {
+            let appError = ErrorLogger.classify(error, context: .auth)
+            ErrorLogger.logError(appError, context: "SignInView.signInWithGoogle")
+            errorMessage = ErrorLogger.userFacingMessage(from: appError)
+        }
+    }
+    
+    private func signInAnonymously() async {
         isLoading = true
         errorMessage = nil
         defer {
@@ -80,8 +133,8 @@ struct SignInView: View {
         do {
             try await authManager.signInAnonymously()
         } catch {
-            let appError = ErrorLogger.classify(error, context: .network)
-            ErrorLogger.logError(appError, context: "SignInView.signIn")
+            let appError = ErrorLogger.classify(error, context: .auth)
+            ErrorLogger.logError(appError, context: "SignInView.signInAnonymously")
             errorMessage = ErrorLogger.userFacingMessage(from: appError)
         }
     }
