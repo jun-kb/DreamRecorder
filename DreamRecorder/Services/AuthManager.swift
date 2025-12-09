@@ -34,36 +34,7 @@ class AuthManager: ObservableObject {
     // MARK: - Google Sign-In
     
     func signInWithGoogle() async throws {
-        // FirebaseのclientIDを取得
-        guard let clientID = FirebaseApp.app()?.options.clientID else {
-            throw AuthError.configurationError
-        }
-        
-        // GoogleSignInの設定
-        let config = GIDConfiguration(clientID: clientID)
-        GIDSignIn.sharedInstance.configuration = config
-        
-        // rootViewControllerを取得
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController else {
-            throw AuthError.noRootViewController
-        }
-        
-        // Googleサインインを実行
-        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
-        
-        // idTokenを取得
-        guard let idToken = result.user.idToken?.tokenString else {
-            throw AuthError.invalidCredential
-        }
-        
-        // Firebase認証用のCredentialを作成
-        let credential = GoogleAuthProvider.credential(
-            withIDToken: idToken,
-            accessToken: result.user.accessToken.tokenString
-        )
-        
-        // Firebaseにサインイン
+        let credential = try await performGoogleSignIn()
         try await Auth.auth().signIn(with: credential)
     }
     
@@ -88,6 +59,56 @@ class AuthManager: ObservableObject {
             throw AuthError.alreadyLinked
         }
         
+        let (credential, email) = try await performGoogleSignInWithEmail()
+        
+        do {
+            // 匿名アカウントにGoogleアカウントをリンク
+            // 状態は AuthStateDidChangeListener によって自動的に更新される
+            try await currentUser.link(with: credential)
+        } catch let error as NSError {
+            // Googleアカウントが既に別のユーザーに紐づいている場合
+            if error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
+                // Credentialを保持して、後で切り替えられるようにする
+                pendingCredential = credential
+                throw AuthError.accountAlreadyExists(email: email)
+            }
+            throw error
+        }
+    }
+    
+    /// 既存のGoogleアカウントに切り替える
+    /// 匿名アカウントのデータは破棄される
+    func switchToExistingGoogleAccount() async throws {
+        guard let credential = pendingCredential else {
+            throw AuthError.noPendingCredential
+        }
+        
+        // 匿名アカウントを削除（自動的にサインアウトされる）
+        // これにより孤立した匿名アカウントがFirebase上に残ることを防ぐ
+        try await Auth.auth().currentUser?.delete()
+        
+        // 既存のGoogleアカウントでサインイン
+        try await Auth.auth().signIn(with: credential)
+        
+        // pendingCredentialをクリア
+        pendingCredential = nil
+    }
+    
+    /// 保留中のCredentialをクリアする
+    func clearPendingCredential() {
+        pendingCredential = nil
+    }
+    
+    // MARK: - Private Helpers
+    
+    /// Googleサインインを実行してCredentialを取得する共通処理
+    private func performGoogleSignIn() async throws -> AuthCredential {
+        let (credential, _) = try await performGoogleSignInWithEmail()
+        return credential
+    }
+    
+    /// Googleサインインを実行してCredentialとメールアドレスを取得する共通処理
+    private func performGoogleSignInWithEmail() async throws -> (AuthCredential, String?) {
         // FirebaseのclientIDを取得
         guard let clientID = FirebaseApp.app()?.options.clientID else {
             throw AuthError.configurationError
@@ -117,47 +138,7 @@ class AuthManager: ObservableObject {
             accessToken: result.user.accessToken.tokenString
         )
         
-        do {
-            // 匿名アカウントにGoogleアカウントをリンク
-            try await currentUser.link(with: credential)
-            
-            // 状態を更新
-            isAnonymous = false
-            isLinkedWithGoogle = true
-            userEmail = result.user.profile?.email
-            userName = result.user.profile?.name
-        } catch let error as NSError {
-            // Googleアカウントが既に別のユーザーに紐づいている場合
-            if error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
-                // Credentialを保持して、後で切り替えられるようにする
-                pendingCredential = credential
-                throw AuthError.accountAlreadyExists(email: result.user.profile?.email)
-            }
-            throw error
-        }
-    }
-    
-    /// 既存のGoogleアカウントに切り替える
-    /// 匿名アカウントのデータは破棄される
-    func switchToExistingGoogleAccount() async throws {
-        guard let credential = pendingCredential else {
-            throw AuthError.noPendingCredential
-        }
-        
-        // 匿名アカウントを削除（オプション: データクリーンアップが必要な場合）
-        // 現在のユーザーをサインアウト
-        try Auth.auth().signOut()
-        
-        // 既存のGoogleアカウントでサインイン
-        try await Auth.auth().signIn(with: credential)
-        
-        // pendingCredentialをクリア
-        pendingCredential = nil
-    }
-    
-    /// 保留中のCredentialをクリアする
-    func clearPendingCredential() {
-        pendingCredential = nil
+        return (credential, result.user.profile?.email)
     }
     
     // MARK: - Sign Out
