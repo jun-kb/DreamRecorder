@@ -398,6 +398,14 @@ private extension Calendar {
 private struct CompactDreamRow: View {
     let dream: Dream
     
+    /// 日付フォーマッター（短い形式: 2025/12/06）
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "yyyy/MM/dd"
+        return formatter
+    }()
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -428,7 +436,7 @@ private struct CompactDreamRow: View {
                 .lineLimit(1)
             
             HStack {
-                Text(dream.recordDate, style: .date)
+                Text(Self.dateFormatter.string(from: dream.recordDate))
                     .font(.dreamCaption)
                     .foregroundColor(.dreamTextSecondary)
                 Spacer()
@@ -453,6 +461,14 @@ private struct CompactDreamRow: View {
 
 private struct CompactReflectionRow: View {
     let reflection: Reflection
+    
+    /// 日付フォーマッター（短い形式: 2025/12/06）
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "yyyy/MM/dd"
+        return formatter
+    }()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -484,7 +500,7 @@ private struct CompactReflectionRow: View {
                 .lineLimit(1)
             
             HStack {
-                Text(reflection.recordDate, style: .date)
+                Text(Self.dateFormatter.string(from: reflection.recordDate))
                     .font(.dreamCaption)
                     .foregroundColor(.dreamTextSecondary)
                 Spacer()
