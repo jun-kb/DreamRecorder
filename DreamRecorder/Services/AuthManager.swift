@@ -22,12 +22,7 @@ class AuthManager: ObservableObject {
     init() {
         // 認証状態の変更をリッスン
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] auth, user in
-            self?.isSignedIn = (user != nil)
-            self?.userId = user?.uid
-            self?.userEmail = user?.email
-            self?.userName = user?.displayName
-            self?.isAnonymous = user?.isAnonymous ?? false
-            self?.isLinkedWithGoogle = user?.providerData.contains { $0.providerID == "google.com" } ?? false
+            self?.updateUserState(from: user)
         }
     }
     
@@ -63,8 +58,12 @@ class AuthManager: ObservableObject {
         
         do {
             // 匿名アカウントにGoogleアカウントをリンク
-            // 状態は AuthStateDidChangeListener によって自動的に更新される
             try await currentUser.link(with: credential)
+            
+            // link(with:)はユーザーIDを変更しないため、AuthStateDidChangeListenerが
+            // 呼ばれないケースがある。そのため、ユーザー情報を再取得して状態を手動更新する
+            try await currentUser.reload()
+            updateUserState(from: Auth.auth().currentUser)
         } catch let error as NSError {
             // Googleアカウントが既に別のユーザーに紐づいている場合
             if error.code == AuthErrorCode.credentialAlreadyInUse.rawValue {
@@ -100,6 +99,16 @@ class AuthManager: ObservableObject {
     }
     
     // MARK: - Private Helpers
+    
+    /// ユーザー情報から状態を更新する
+    private func updateUserState(from user: User?) {
+        isSignedIn = (user != nil)
+        userId = user?.uid
+        userEmail = user?.email
+        userName = user?.displayName
+        isAnonymous = user?.isAnonymous ?? false
+        isLinkedWithGoogle = user?.providerData.contains { $0.providerID == "google.com" } ?? false
+    }
     
     /// Googleサインインを実行してCredentialを取得する共通処理
     private func performGoogleSignIn() async throws -> AuthCredential {
