@@ -2,6 +2,7 @@
 # https://github.com/Codium-ai/pr-agent/blob/main/pr_agent/settings/configuration.toml
 
 [config]
+reasoning_effort = "high"
 response_language = "ja-JP"
 enable_auto_approval = true
 auto_approve_for_low_review_effort = 3
