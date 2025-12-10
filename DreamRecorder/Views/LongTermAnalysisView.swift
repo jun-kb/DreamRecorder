@@ -8,7 +8,6 @@ struct LongTermAnalysisView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // 背景
                 Color.clear.dreamBackground()
                 
                 VStack(spacing: 20) {
@@ -33,6 +32,5 @@ struct LongTermAnalysisView: View {
             .navigationTitle("長期分析")
             .navigationBarTitleDisplayMode(.inline)
         }
-        .preferredColorScheme(.dark)
     }
 }
