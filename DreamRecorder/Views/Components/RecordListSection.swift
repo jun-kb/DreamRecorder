@@ -7,6 +7,7 @@ struct RecordListSection: View {
     var body: some View {
         ZStack {
             recordList
+                .disabled(viewModel.isLoading)
             
             if viewModel.isLoading {
                 ProgressView()
