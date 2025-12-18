@@ -69,6 +69,8 @@ struct CalendarSection: View {
                         date: date,
                         isSelected: Calendar.current.isDate(date, inSameDayAs: viewModel.selectedDate),
                         isToday: Calendar.current.isDateInToday(date),
+                        hasDream: viewModel.hasDream(for: date),
+                        hasReflection: viewModel.hasReflection(for: date),
                         onTap: { viewModel.handleDateTap(date) }
                     )
                 } else {
@@ -104,6 +106,8 @@ private struct DayCell: View {
     let date: Date
     let isSelected: Bool
     let isToday: Bool
+    let hasDream: Bool
+    let hasReflection: Bool
     let onTap: () -> Void
     
     private static let dayFormatter: DateFormatter = {
@@ -118,23 +122,34 @@ private struct DayCell: View {
             VStack(spacing: 4) {
                 Text(Self.dayFormatter.string(from: date))
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(isSelected ? .black : .dreamText)
+                    .foregroundColor(isToday ? .black : .dreamText)
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .background(
+                        // 今日：背景にCircle
                         Circle()
-                            .fill(isSelected ? Color.dreamAccent : Color.clear)
+                            .fill(isToday ? Color.dreamAccent : Color.clear)
                     )
                 
-                // 今日インジケーター（選択中でなければ表示）
-                Circle()
-                    .fill(isToday && !isSelected ? Color.dreamAccent : Color.clear)
-                    .frame(width: 6, height: 6)
+                // 記入済みインジケーター（2つのドット）
+                HStack(spacing: 3) {
+                    if hasDream {
+                        Circle()
+                            .fill(Color.dreamIndicator)
+                            .frame(width: 5, height: 5)
+                    }
+                    if hasReflection {
+                        Circle()
+                            .fill(Color.reflectionIndicator)
+                            .frame(width: 5, height: 5)
+                    }
+                }
             }
             .frame(height: 40)
             .padding(6)
             .background(
+                // 選択中：セル背景色を変更
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color.dreamAccent.opacity(0.15) : Color.white.opacity(0.03))
+                    .fill(isSelected ? Color.dreamAccent.opacity(0.25) : Color.white.opacity(0.03))
             )
         }
         .buttonStyle(.plain)

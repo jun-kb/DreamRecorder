@@ -103,6 +103,20 @@ final class HomeViewModel: ObservableObject {
                 self?.reflectionService.errorMessage = nil
             }
             .store(in: &cancellables)
+        
+        // DreamServiceのデータ変更を監視（カレンダーのインジケーター更新用）
+        dreamService.$dreams
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        
+        // ReflectionServiceのデータ変更を監視（カレンダーのインジケーター更新用）
+        reflectionService.$reflections
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
     
     /// 認証状態に基づいてリスナーをセットアップ
@@ -224,5 +238,17 @@ extension HomeViewModel {
             padded.append(contentsOf: Array(repeating: nil, count: 7 - remainder))
         }
         return padded
+    }
+    
+    /// 指定日に夢の記録があるかを判定
+    func hasDream(for date: Date) -> Bool {
+        let calendar = Calendar.current
+        return dreamService.dreams.contains { calendar.isDate($0.recordDate, inSameDayAs: date) }
+    }
+    
+    /// 指定日に日記の記録があるかを判定
+    func hasReflection(for date: Date) -> Bool {
+        let calendar = Calendar.current
+        return reflectionService.reflections.contains { calendar.isDate($0.recordDate, inSameDayAs: date) }
     }
 }
