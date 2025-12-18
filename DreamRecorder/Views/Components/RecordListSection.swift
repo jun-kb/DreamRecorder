@@ -6,11 +6,7 @@ struct RecordListSection: View {
     
     var body: some View {
         ZStack {
-            if viewModel.filteredDreams.isEmpty && viewModel.filteredReflections.isEmpty && !viewModel.isLoading {
-                EmptyRecordView(viewModel: viewModel)
-            } else {
-                recordList
-            }
+            recordList
             
             if viewModel.isLoading {
                 ProgressView()
@@ -24,8 +20,9 @@ struct RecordListSection: View {
     
     private var recordList: some View {
         List {
-            if !viewModel.filteredDreams.isEmpty {
-                Section(header: EmptyView()) {
+            // 夢セクション: データがあれば表示、なければ追加プロンプト
+            Section(header: EmptyView()) {
+                if !viewModel.filteredDreams.isEmpty {
                     ForEach(viewModel.filteredDreams) { dream in
                         Button {
                             viewModel.navigateToDetail(for: dream.recordDate)
@@ -38,11 +35,19 @@ struct RecordListSection: View {
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     }
                     .onDelete(perform: viewModel.deleteDreams)
+                } else {
+                    AddPromptRow(type: .dream) {
+                        viewModel.showAddDreamSheet()
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 }
             }
             
-            if !viewModel.filteredReflections.isEmpty {
-                Section(header: EmptyView()) {
+            // 日記セクション: データがあれば表示、なければ追加プロンプト
+            Section(header: EmptyView()) {
+                if !viewModel.filteredReflections.isEmpty {
                     ForEach(viewModel.filteredReflections) { reflection in
                         Button {
                             viewModel.navigateToDetail(for: reflection.recordDate)
@@ -55,60 +60,18 @@ struct RecordListSection: View {
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     }
                     .onDelete(perform: viewModel.deleteReflections)
+                } else {
+                    AddPromptRow(type: .reflection) {
+                        viewModel.showAddReflectionSheet()
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-    }
-}
-
-// MARK: - EmptyRecordView
-
-/// 記録がない場合の空状態表示
-struct EmptyRecordView: View {
-    @ObservedObject var viewModel: HomeViewModel
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "moon.zzz.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.dreamTextSecondary)
-            Text("この日の記録はありません")
-                .font(.dreamHeadline)
-                .foregroundColor(.dreamTextSecondary)
-            Text("夢や日記を追加して、この日の出来事を残しましょう。")
-                .font(.dreamCaption)
-                .foregroundColor(.dreamTextSecondary)
-            
-            HStack(spacing: 16) {
-                Button {
-                    viewModel.showAddDreamSheet()
-                } label: {
-                    Label("夢を追加", systemImage: "plus.circle.fill")
-                        .font(.dreamCaption)
-                        .fontWeight(.semibold)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.dreamAccent)
-                
-                Button {
-                    viewModel.showAddReflectionSheet()
-                } label: {
-                    Label("日記を追加", systemImage: "square.and.pencil")
-                        .font(.dreamCaption)
-                        .fontWeight(.semibold)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.dreamAccent)
-            }
-            .padding()
-        }
-        .padding()
     }
 }
 
@@ -183,6 +146,76 @@ struct CompactReflectionRow: View {
             }
         }
         .compactRowStyle()
+    }
+}
+
+// MARK: - AddPromptRow
+
+/// 追加を促すプロンプト行（片方のデータがない場合に表示）
+struct AddPromptRow: View {
+    let type: RecordType
+    let action: () -> Void
+    
+    enum RecordType {
+        case dream
+        case reflection
+        
+        var title: String {
+            switch self {
+            case .dream: return "夢"
+            case .reflection: return "日記"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .dream: return "moon.zzz"
+            case .reflection: return "square.and.pencil"
+            }
+        }
+        
+        var prompt: String {
+            switch self {
+            case .dream: return "夢を追加しましょう"
+            case .reflection: return "日記を追加しましょう"
+            }
+        }
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(.dreamAccent)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(type.title)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(.dreamAccent)
+                    
+                    Text(type.prompt)
+                        .font(.dreamCaption)
+                        .foregroundColor(.dreamTextSecondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: type.icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(.dreamTextSecondary.opacity(0.5))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(Color.dreamCard.opacity(0.3))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                    .foregroundColor(.dreamAccent.opacity(0.4))
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
