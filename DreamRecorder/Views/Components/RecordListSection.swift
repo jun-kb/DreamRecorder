@@ -7,7 +7,7 @@ struct RecordListSection: View {
     var body: some View {
         ZStack {
             if viewModel.filteredDreams.isEmpty && viewModel.filteredReflections.isEmpty && !viewModel.isLoading {
-                EmptyRecordView()
+                EmptyRecordView(viewModel: viewModel)
             } else {
                 recordList
             }
@@ -67,19 +67,48 @@ struct RecordListSection: View {
 
 /// 記録がない場合の空状態表示
 struct EmptyRecordView: View {
+    @ObservedObject var viewModel: HomeViewModel
+    
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Image(systemName: "moon.zzz.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.dreamTextSecondary)
             Text("この日の記録はありません")
                 .font(.dreamHeadline)
                 .foregroundColor(.dreamTextSecondary)
-            Text("下の + ボタンから夢や日記を追加しましょう")
+            Text("夢や日記を追加して、この日の出来事を残しましょう。")
                 .font(.dreamCaption)
                 .foregroundColor(.dreamTextSecondary)
+            
+            HStack(spacing: 16) {
+                Button {
+                    viewModel.showAddDreamSheet()
+                } label: {
+                    Label("夢を追加", systemImage: "plus.circle.fill")
+                        .font(.dreamCaption)
+                        .fontWeight(.semibold)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.dreamAccent)
+                
+                Button {
+                    viewModel.showAddReflectionSheet()
+                } label: {
+                    Label("日記を追加", systemImage: "square.and.pencil")
+                        .font(.dreamCaption)
+                        .fontWeight(.semibold)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.dreamAccent)
+            }
+            .padding()
         }
-        .padding(.bottom, 60)
+        .padding()
     }
 }
 
