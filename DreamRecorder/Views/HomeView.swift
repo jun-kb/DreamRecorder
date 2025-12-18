@@ -46,15 +46,10 @@ private struct HomeViewContent: View {
                     RecordListSection(viewModel: viewModel)
                 }
             }
-            .navigationTitle("夢の記録")
+            .navigationTitle("ホーム")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $viewModel.navigateToDailyDetail) {
                 DailyDetailView(date: viewModel.detailDate)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    addMenu
-                }
             }
             .sheet(item: $viewModel.activeSheet) { sheet in
                 sheetContent(for: sheet)
@@ -76,27 +71,6 @@ private struct HomeViewContent: View {
     }
     
     // MARK: - Subviews
-    
-    /// 追加メニュー（夢追加/日記追加）
-    private var addMenu: some View {
-        Menu {
-            Button {
-                viewModel.showAddDreamSheet()
-            } label: {
-                Label("夢を追加", systemImage: "plus.circle")
-            }
-            
-            Button {
-                viewModel.showAddReflectionSheet()
-            } label: {
-                Label("日記を追加", systemImage: "square.and.pencil")
-            }
-        } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 24))
-                .foregroundColor(.dreamAccent)
-        }
-    }
     
     /// シート内容の生成
     @ViewBuilder
