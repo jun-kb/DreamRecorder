@@ -33,18 +33,12 @@ private struct DreamAnalysisData {
     }
 }
 
-private struct AttributeDetail: Identifiable {
-    let id = UUID()
-    let attribute: String
-    let message: String
-}
-
 struct LongTermAnalysisView: View {
     @EnvironmentObject private var dreamService: DreamService
     
     @AppStorage("showMonthlyComparison") private var showComparison = true
     @State private var analysisData: DreamAnalysisData = .mock
-    @State private var attributeDetail: AttributeDetail?
+    @State private var showAttributeGuide = false
     
     private let attributeLabels = ["平穏", "活動", "絆", "創造", "ストレス", "気づき"]
     private let highlightColor = Color.dreamAccent
@@ -73,19 +67,29 @@ struct LongTermAnalysisView: View {
             }
         .navigationTitle("長期分析")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $attributeDetail) { detail in
-                attributeDetailSheet(detail)
+        .sheet(isPresented: $showAttributeGuide) {
+                attributeGuideSheet
             }
         }
     }
     
     private var longTermSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("夢の星座")
-                .font(.system(.headline, design: .rounded, weight: .semibold))
-                .foregroundColor(.dreamText)
+            HStack {
+                Text("夢の星座")
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                    .foregroundColor(.dreamText)
+                Spacer()
+                Button {
+                    showAttributeGuide = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 24))
+                        .foregroundColor(.dreamAccent)
+                }
+            }
             
-            Text("過去の夢を6属性でマッピングし、星座のように可視化します。頂点をタップすると根拠となる夢を確認できます。")
+            Text("過去の夢を6属性でマッピングし、星座のように可視化します。")
                 .font(.dreamCaption)
                 .foregroundColor(.dreamTextSecondary)
             
@@ -94,9 +98,7 @@ struct LongTermAnalysisView: View {
                 previous: showComparison ? analysisData.previous.asArray : [],
                 labels: attributeLabels,
                 highlightColor: highlightColor
-            ) { index in
-                openAttributeDetail(index: index)
-            }
+            )
             .frame(height: 300)
             
             VStack(alignment: .leading, spacing: 8) {
@@ -127,67 +129,64 @@ struct LongTermAnalysisView: View {
         )
     }
     
-    private func openAttributeDetail(index: Int) {
-        guard attributeLabels.indices.contains(index) else { return }
-        let label = attributeLabels[index]
-        let sampleDream = dreamService.dreams.randomElement()
-        let dateText: String
-        let contentText: String
-        let meaning = attributeMeanings[safe: index] ?? ""
-        if let dream = sampleDream {
-            dateText = Self.evidenceDateFormatter.string(from: dream.recordDate)
-            contentText = String(dream.content.prefix(80))
-        } else {
-            dateText = "記録なし"
-            contentText = "まだ十分な夢の記録がありません。新しい夢を記録すると分析精度が上がります。"
-        }
-        
-        let message = """
-        \(meaning)
-
-        あなたの「\(label)」スコアを高めた夢はこちらです。
-        日付: \(dateText)
-        内容: \(contentText)
-        """
-        
-        attributeDetail = AttributeDetail(attribute: label, message: message)
-    }
-    
-    private func attributeDetailSheet(_ detail: AttributeDetail) -> some View {
+    private var attributeGuideSheet: some View {
         NavigationStack {
             ZStack {
                 Color.clear.dreamBackground()
                     .ignoresSafeArea()
                 
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(detail.attribute)
-                        .font(.system(.title3, design: .rounded, weight: .semibold))
-                        .foregroundColor(.dreamText)
-                    Text(detail.message)
-                        .font(.system(.body, design: .rounded))
-                        .foregroundColor(.dreamText)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Spacer()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("夢の星座では、あなたの夢を6つの属性で分析しています。それぞれの属性が示す意味をご紹介します。")
+                            .font(.system(.callout, design: .rounded))
+                            .foregroundColor(.dreamTextSecondary)
+                            .padding(.bottom, 8)
+                        
+                        ForEach(Array(attributeLabels.enumerated()), id: \.offset) { index, label in
+                            attributeCard(label: label, meaning: attributeMeanings[safe: index] ?? "")
+                        }
+                    }
+                    .padding()
                 }
-                .padding()
             }
-            .navigationTitle("属性の根拠")
+            .navigationTitle("属性ガイド")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { attributeDetail = nil }
+                    Button("閉じる") { showAttributeGuide = false }
                         .foregroundColor(.dreamAccent)
                 }
             }
         }
     }
     
-    private static let evidenceDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "y/MM/dd"
-        return formatter
-    }()
+    private func attributeCard(label: String, meaning: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "star.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.dreamAccent)
+                .padding(.top, 3)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                    .foregroundColor(.dreamText)
+                Text(meaning)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(.dreamTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer()
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.3))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
 }
 
 // MARK: - Dream Constellation Chart
@@ -197,7 +196,6 @@ private struct DreamConstellationChart: View {
     let previous: [Double]
     let labels: [String]
     let highlightColor: Color
-    let onSelect: (Int) -> Void
     
     var body: some View {
         GeometryReader { geo in
@@ -296,19 +294,14 @@ private struct DreamConstellationChart: View {
         ForEach(Array(labels.prefix(count).enumerated()), id: \.offset) { item in
             let idx = item.offset
             let basePoint = point(for: 1.05, index: idx, center: center, radius: radius, total: count)
-            Button {
-                onSelect(idx)
-            } label: {
-                Text(item.element)
-                    .font(.dreamCaption)
-                    .foregroundColor(.dreamText)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.black.opacity(0.25))
-                    .cornerRadius(10)
-            }
-            .buttonStyle(.plain)
-            .position(basePoint)
+            Text(item.element)
+                .font(.dreamCaption)
+                .foregroundColor(.dreamText)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.25))
+                .cornerRadius(10)
+                .position(basePoint)
         }
     }
 }
