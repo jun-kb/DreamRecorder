@@ -28,7 +28,6 @@ struct DreamFortuneView: View {
     @EnvironmentObject private var dreamService: DreamService
     @EnvironmentObject private var reflectionService: ReflectionService
     @EnvironmentObject private var authManager: AuthManager
-    @Namespace private var tellerNamespace
     private let fortuneTellers = FortuneTellerManager.allFortuneTellers
     
     @State private var selectedTeller: FortuneTeller = FortuneTellerManager.allFortuneTellers.first ?? FortuneTeller(
@@ -73,69 +72,68 @@ struct DreamFortuneView: View {
     }
     
     var body: some View {
-        ZStack {
-            Color.clear.dreamBackground()
-                .ignoresSafeArea()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    selectedTellerCard
-                    tellerSelector
+        NavigationStack {
+            ZStack {
+                Color.clear.dreamBackground()
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        tellerSelector
 
-                    dailySection
+                        dailySection
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 12)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
+                .safeAreaInset(edge: .bottom) {
+                    Color.clear.frame(height: 80)
+                }
             }
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: 80)
+            .navigationTitle("夢占い")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(item: $tellerProfileToShow) { teller in
+                profileSheet(teller)
             }
-        }
-        .navigationTitle("夢占い")
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $tellerProfileToShow) { teller in
-            profileSheet(teller)
-        }
-        .sheet(isPresented: $showDatePicker) {
-            datePickerSheet
-        }
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .addDream(let date):
-                AddDreamView(recordDate: date)
-            case .addReflection(let date):
-                AddReflectionView(recordDate: date)
+            .sheet(isPresented: $showDatePicker) {
+                datePickerSheet
             }
-        }
-        .alert("エラー", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(errorMessage ?? "")
-        }
-        .alert(item: $fortuneAlert) { alert in
-            switch alert {
-            case .noDream:
-                Alert(
-                    title: Text("夢の記録がありません"),
-                    dismissButton: .default(Text("OK")) {
-                        activeSheet = .addDream(selectedDate)
-                    }
-                )
-            case .missingReflection:
-                Alert(
-                    title: Text("昨日の日記が見つかりません。日記なしで占いますか？"),
-                    primaryButton: .default(Text("日記なしで占う")) {
-                        guard let dream = pendingFortuneDream else { return }
-                        startFortune(dream: dream, reflection: nil)
-                    },
-                    secondaryButton: .default(Text("日記を追加")) {
-                        activeSheet = .addReflection(yesterdayDate)
-                    }
-                )
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .addDream(let date):
+                    AddDreamView(recordDate: date)
+                case .addReflection(let date):
+                    AddReflectionView(recordDate: date)
+                }
             }
-        }
-        .onChange(of: selectedDate) { _, _ in
-            resultText = ""
+            .alert("エラー", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .alert("夢の記録がありません", isPresented: Binding(
+                get: { fortuneAlert == .noDream },
+                set: { if !$0 { fortuneAlert = nil } }
+            )) {
+                Button("夢を記録") { activeSheet = .addDream(selectedDate) }
+                Button("キャンセル", role: .cancel) { fortuneAlert = nil }
+            } message: {
+                Text("夢を記録してから占いを実行してください。")
+            }
+            .alert("昨日の日記が見つかりません。日記なしで占いますか？", isPresented: Binding(
+                get: { fortuneAlert == .missingReflection },
+                set: { if !$0 { fortuneAlert = nil } }
+            )) {
+                Button("日記なしで占う") {
+                    guard let dream = pendingFortuneDream else { return }
+                    startFortune(dream: dream, reflection: nil)
+                }
+                Button("日記を追加") { activeSheet = .addReflection(yesterdayDate) }
+                Button("キャンセル", role: .cancel) { fortuneAlert = nil }
+            }
+            .onChange(of: selectedDate) { _, _ in
+                resultText = ""
+            }
         }
     }
     
@@ -145,95 +143,65 @@ struct DreamFortuneView: View {
                 .font(.system(.headline, design: .rounded, weight: .semibold))
                 .foregroundColor(.dreamText)
             
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(fortuneTellers) { teller in
-                        let isSelected = teller.id == selectedTeller.id
-                        Button {
-                            if isSelected {
-                                tellerProfileToShow = teller
-                            } else {
-                                selectedTeller = teller
-                            }
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: teller.imageName)
-                                    .font(.system(size: 20, weight: .bold))
-                                    .frame(width: 42, height: 42)
-                                    .foregroundColor(teller.themeColor)
-                                    .background(teller.themeColor.opacity(0.15))
-                                    .clipShape(Circle())
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(teller.name)
-                                        .font(.system(.body, design: .rounded, weight: .semibold))
-                                        .foregroundColor(.dreamText)
-                                    Text(teller.description)
-                                        .font(.dreamCaption)
-                                        .foregroundColor(.dreamTextSecondary)
-                                        .lineLimit(2)
-                                        .minimumScaleFactor(0.9)
-                                }
-                                
-                                Spacer()
-                                
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(fortuneTellers) { teller in
+                            let isSelected = teller.id == selectedTeller.id
+                            Button {
                                 if isSelected {
-                                    Image(systemName: "info.circle.fill")
-                                        .foregroundColor(teller.themeColor)
+                                    tellerProfileToShow = teller
+                                } else {
+                                    selectedTeller = teller
                                 }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: teller.imageName)
+                                        .font(.system(size: 20, weight: .bold))
+                                        .frame(width: 42, height: 42)
+                                        .foregroundColor(teller.themeColor)
+                                        .background(teller.themeColor.opacity(0.15))
+                                        .clipShape(Circle())
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(teller.name)
+                                            .font(.system(.body, design: .rounded, weight: .semibold))
+                                            .foregroundColor(.dreamText)
+                                        Text(teller.description)
+                                            .font(.dreamCaption)
+                                            .foregroundColor(.dreamTextSecondary)
+                                            .lineLimit(2)
+                                            .minimumScaleFactor(0.9)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if isSelected {
+                                        Image(systemName: "info.circle.fill")
+                                            .foregroundColor(teller.themeColor)
+                                    }
+                                }
+                                .padding(12)
+                                .frame(minWidth: 240, maxWidth: 320, alignment: .leading)
+                                .background(Color.dreamCard.opacity(isSelected ? 0.9 : 0.6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(isSelected ? teller.themeColor.opacity(0.7) : Color.white.opacity(0.1), lineWidth: 1.1)
+                                )
+                                .cornerRadius(14)
+                                .shadow(color: Color.black.opacity(0.16), radius: 7, x: 0, y: 3)
                             }
-                            .padding(12)
-                            .frame(minWidth: 240, maxWidth: 320, alignment: .leading)
-                            .background(Color.dreamCard.opacity(isSelected ? 0.9 : 0.6))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(isSelected ? teller.themeColor.opacity(0.7) : Color.white.opacity(0.1), lineWidth: 1.1)
-                            )
-                            .cornerRadius(14)
-                            .shadow(color: Color.black.opacity(0.16), radius: 7, x: 0, y: 3)
+                            .buttonStyle(.plain)
+                            .id(teller.id)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
-            }
-        }
-    }
-
-    private var selectedTellerCard: some View {
-        let teller = selectedTeller
-        return ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color.dreamCard)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
-                )
-                .shadow(color: teller.themeColor.opacity(0.2), radius: 14, x: 0, y: 8)
-                .matchedGeometryEffect(id: "teller_\(teller.id)", in: tellerNamespace)
-
-            HStack(alignment: .center, spacing: 14) {
-                Image(systemName: teller.imageName)
-                    .font(.system(size: 34, weight: .bold))
-                    .foregroundColor(teller.themeColor)
-                    .frame(width: 70, height: 70)
-                    .background(teller.themeColor.opacity(0.18))
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(teller.name)
-                        .font(.system(.title3, design: .rounded, weight: .semibold))
-                        .foregroundColor(.dreamText)
-                    Text(teller.description)
-                        .font(.dreamCaption)
-                        .foregroundColor(.dreamTextSecondary)
-                        .lineLimit(3)
+                .onAppear { scrollToSelectedTeller(proxy) }
+                .onChange(of: selectedTeller.id) { _, _ in
+                    scrollToSelectedTeller(proxy)
                 }
-
-                Spacer()
             }
-            .padding(18)
         }
-        .frame(maxWidth: .infinity)
     }
     
     private var dailySection: some View {
@@ -323,12 +291,6 @@ struct DreamFortuneView: View {
                 .shadow(color: selectedTeller.themeColor.opacity(0.35), radius: 12, x: 0, y: 6)
             }
             .disabled(isFortuning)
-            
-            if !hasDream {
-                Text("選択した日に夢の記録がありません")
-                    .font(.dreamCaption)
-                    .foregroundColor(.orange)
-            }
         }
     }
     
@@ -379,6 +341,12 @@ struct DreamFortuneView: View {
         guard let newDate = Calendar.current.date(byAdding: .day, value: value, to: selectedDate) else { return }
         withAnimation(.easeInOut(duration: 0.25)) {
             selectedDate = newDate
+        }
+    }
+
+    private func scrollToSelectedTeller(_ proxy: ScrollViewProxy) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            proxy.scrollTo(selectedTeller.id, anchor: .center)
         }
     }
     
