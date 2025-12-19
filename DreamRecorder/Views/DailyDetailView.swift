@@ -67,30 +67,8 @@ struct DailyDetailView: View {
                     .transition(transition(for: slideDirection))
             }
         }
+        .navigationTitle("詳細")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button {
-                        feedbackSelection()
-                        openDreamSheet(editing: nil)
-                    } label: {
-                        Label("夢を追加", systemImage: "plus.circle")
-                    }
-                    
-                    Button {
-                        feedbackSelection()
-                        openReflectionSheet(editing: nil)
-                    } label: {
-                        Label("日記を追加", systemImage: "square.and.pencil")
-                    }
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.dreamAccent)
-                }
-            }
-        }
         .sheet(item: $sheetContext) { context in
             switch context.type {
             case .dream(let target):
@@ -377,7 +355,7 @@ struct DailyDetailView: View {
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .tint(.dreamAccent)
             }
         }
