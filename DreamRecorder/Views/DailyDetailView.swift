@@ -38,6 +38,7 @@ struct DailyDetailView: View {
     @State private var currentDate: Date
     @State private var slideDirection: SlideDirection = .forward
     @State private var interpretationToShow: String?
+    @State private var showDatePicker = false
     
     init(date: Date) {
         self.date = date
@@ -100,6 +101,9 @@ struct DailyDetailView: View {
                 AddReflectionView(recordDate: currentDate, reflectionToEdit: target)
                     .id(context.id)
             }
+        }
+        .sheet(isPresented: $showDatePicker) {
+            datePickerSheet
         }
         .alert("エラー", isPresented: $showError) {
             Button("OK", role: .cancel) { }
@@ -244,7 +248,8 @@ struct DailyDetailView: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
-                    .allowsHitTesting(false)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showDatePicker = true }
             }
             .frame(maxWidth: .infinity)
         }
@@ -562,6 +567,35 @@ struct DailyDetailView: View {
         
         withAnimation(.easeInOut(duration: 0.25)) {
             currentDate = newDate
+        }
+    }
+
+    private var datePickerSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.clear.dreamBackground()
+                    .ignoresSafeArea()
+                
+                VStack(alignment: .leading, spacing: 16) {
+                    DatePicker(
+                        "日付を選択",
+                        selection: $currentDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .tint(.dreamAccent)
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("日付を選ぶ")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") { showDatePicker = false }
+                        .foregroundColor(.dreamAccent)
+                }
+            }
         }
     }
     

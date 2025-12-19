@@ -1,12 +1,5 @@
 import SwiftUI
 
-private enum AnalysisSource: String, CaseIterable, Identifiable {
-    case dreamOnly = "夢のみで占う"
-    case dreamAndReflection = "夢と日記で占う"
-    
-    var id: String { rawValue }
-}
-
 private enum FortuneAlert: Identifiable {
     case noDream
     case missingReflection
@@ -45,7 +38,6 @@ struct DreamFortuneView: View {
         description: "デフォルトの占い師",
         systemInstruction: ""
     )
-    @State private var source: AnalysisSource = .dreamOnly
     @State private var selectedDate: Date = Date()
     @State private var isFortuning = false
     @State private var resultText: String = ""
@@ -70,13 +62,8 @@ struct DreamFortuneView: View {
     
     private var hasDream: Bool { selectedDream != nil }
     private var hasReflection: Bool { yesterdayReflection != nil }
-    private var dateLabel: String { Self.dateFormatter.string(from: selectedDate) }
     private var formattedDateString: String {
-        let dateString = Self.monthDayWeekFormatter.string(from: selectedDate)
-        let components = dateString.split(separator: "|").map(String.init)
-        guard components.count == 2 else { return dateString }
-        let weekdayUpper = components[1].uppercased()
-        return "\(components[0]), \(weekdayUpper)"
+        Self.monthDayWeekFormatter.string(from: selectedDate)
     }
     private var displayedResultText: String? {
         if let interpretation = selectedDream?.interpretation, !interpretation.isEmpty {
@@ -99,6 +86,9 @@ struct DreamFortuneView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)
+            }
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 80)
             }
         }
         .navigationTitle("夢占い")
@@ -145,9 +135,6 @@ struct DreamFortuneView: View {
             }
         }
         .onChange(of: selectedDate) { _, _ in
-            if source == .dreamAndReflection && !hasReflection {
-                source = .dreamOnly
-            }
             resultText = ""
         }
     }
@@ -252,11 +239,8 @@ struct DreamFortuneView: View {
     private var dailySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             compactDailyHeader
-            sourcePicker
             actionButton
-            if let result = displayedResultText, !result.isEmpty {
-                resultCard(result)
-            }
+            resultContent
         }
         .padding(14)
         .background(Color.dreamCard)
@@ -277,7 +261,6 @@ struct DreamFortuneView: View {
                             .stroke(Color.white.opacity(0.08), lineWidth: 1)
                     )
                     .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 8)
-                    .animation(.easeInOut(duration: 0.2), value: selectedDate)
                 
                 HStack {
                     navigationArrow(direction: -1, icon: "chevron.left")
@@ -287,7 +270,7 @@ struct DreamFortuneView: View {
                 .padding(.horizontal, 14)
                 
                 Text(formattedDateString)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .font(.system(size: 20, weight: .regular, design: .rounded))
                     .foregroundColor(.dreamText)
                     .padding(.horizontal, 64)
                     .multilineTextAlignment(.center)
@@ -297,11 +280,6 @@ struct DreamFortuneView: View {
                     .contentShape(Rectangle())
             }
             .frame(maxWidth: .infinity)
-            
-            HStack(spacing: 8) {
-                statusBadge(label: "夢", isDone: hasDream)
-                statusBadge(label: "前日の日記", isDone: hasReflection)
-            }
         }
     }
 
@@ -321,32 +299,6 @@ struct DreamFortuneView: View {
                 )
         }
         .buttonStyle(.plain)
-    }
-    
-    private var sourcePicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("分析ソース")
-                .font(.dreamBody)
-                .foregroundColor(.dreamTextSecondary)
-            
-            Picker("分析ソース", selection: $source) {
-                Text("夢のみで占う").tag(AnalysisSource.dreamOnly)
-                Text("夢と日記で占う").tag(AnalysisSource.dreamAndReflection)
-            }
-            .pickerStyle(.segmented)
-            .padding(.vertical, 2)
-            .onChange(of: source) { _, newValue in
-                if newValue == .dreamAndReflection && !hasReflection {
-                    source = .dreamOnly
-                }
-            }
-            
-            if source == .dreamAndReflection && !hasReflection {
-                Text("前日の日記の記録が必要です")
-                    .font(.dreamCaption)
-                    .foregroundColor(.orange)
-            }
-        }
     }
     
     private var actionButton: some View {
@@ -376,15 +328,11 @@ struct DreamFortuneView: View {
                 Text("選択した日に夢の記録がありません")
                     .font(.dreamCaption)
                     .foregroundColor(.orange)
-            } else if source == .dreamAndReflection && !hasReflection {
-                Text("前日の日記がないため、夢のみで占います")
-                    .font(.dreamCaption)
-                    .foregroundColor(.orange)
             }
         }
     }
     
-    private func resultCard(_ text: String) -> some View {
+    private var resultContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("占い結果")
                 .font(.dreamBody)
@@ -394,38 +342,42 @@ struct DreamFortuneView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.dreamCard)
                 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(text)
-                            .font(.dreamBody)
-                            .foregroundColor(.dreamText)
-                            .multilineTextAlignment(.leading)
+                if let result = displayedResultText, !result.isEmpty {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(result)
+                                .font(.dreamBody)
+                                .foregroundColor(.dreamText)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .padding()
                     }
+                } else {
+                    VStack(spacing: 12) {
+                        if isFortuning {
+                            ProgressView().tint(.dreamAccent)
+                            Text("占い結果を生成しています…")
+                                .font(.dreamBody)
+                                .foregroundColor(.dreamText)
+                        } else {
+                            Text("占いを実行すると、結果がここに表示されます")
+                                .font(.dreamBody)
+                                .foregroundColor(.dreamTextSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
                 }
             }
-            .frame(minHeight: 180, maxHeight: 260)
+            .frame(minHeight: 200, maxHeight: 320)
         }
-    }
-    
-    private func statusBadge(label: String, isDone: Bool) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: isDone ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(isDone ? .green : .orange)
-            Text(label + (isDone ? "あり" : "なし"))
-                .font(.dreamCaption)
-                .foregroundColor(.dreamText)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(12)
     }
     
     private func shiftDate(by value: Int) {
         guard let newDate = Calendar.current.date(byAdding: .day, value: value, to: selectedDate) else { return }
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.easeInOut(duration: 0.25)) {
             selectedDate = newDate
         }
     }
@@ -453,7 +405,6 @@ struct DreamFortuneView: View {
         isFortuning = true
         errorMessage = nil
         resultText = ""
-        source = reflection == nil ? .dreamOnly : .dreamAndReflection
         
         Task {
             do {
@@ -550,17 +501,10 @@ struct DreamFortuneView: View {
         }
     }
     
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "y年M月d日"
-        return formatter
-    }()
-    
     private static let monthDayWeekFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "M月d日|E"
+        formatter.dateFormat = "M月d日（E）"
         return formatter
     }()
 }
