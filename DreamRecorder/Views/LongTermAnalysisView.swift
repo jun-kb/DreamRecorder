@@ -1,7 +1,7 @@
 import SwiftUI
 
-// AI分析画面（プレースホルダー）
-struct AIAnalysisView: View {
+// 長期分析画面（プレースホルダー）
+struct LongTermAnalysisView: View {
     @EnvironmentObject var dreamService: DreamService
     @EnvironmentObject var authManager: AuthManager
     
@@ -12,11 +12,11 @@ struct AIAnalysisView: View {
                 Color.clear.dreamBackground()
                 
                 VStack(spacing: 20) {
-                    Image(systemName: "brain.head.profile")
+                    Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.system(size: 60))
                         .foregroundColor(.dreamTextSecondary)
                     
-                    Text("AI分析")
+                    Text("長期分析")
                         .font(.dreamHeadline)
                         .foregroundColor(.dreamText)
                     
@@ -30,10 +30,9 @@ struct AIAnalysisView: View {
                         .padding(.top, 8)
                 }
             }
-            .navigationTitle("AI分析")
+            .navigationTitle("長期分析")
             .navigationBarTitleDisplayMode(.inline)
         }
         .preferredColorScheme(.dark)
     }
 }
-

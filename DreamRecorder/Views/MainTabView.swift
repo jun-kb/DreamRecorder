@@ -4,14 +4,16 @@ import SwiftUI
 enum TabItem: Int, CaseIterable {
     case home
     case allDreams
-    case aiAnalysis
+    case dreamFortune
+    case longTermAnalysis
     case settings
     
     var title: String {
         switch self {
         case .home: return "ホーム"
         case .allDreams: return "一覧"
-        case .aiAnalysis: return "AI分析"
+        case .dreamFortune: return "夢占い"
+        case .longTermAnalysis: return "長期分析"
         case .settings: return "設定"
         }
     }
@@ -20,7 +22,8 @@ enum TabItem: Int, CaseIterable {
         switch self {
         case .home: return "house.fill"
         case .allDreams: return "list.bullet"
-        case .aiAnalysis: return "brain.head.profile"
+        case .dreamFortune: return "sparkles"
+        case .longTermAnalysis: return "chart.line.uptrend.xyaxis"
         case .settings: return "gearshape.fill"
         }
     }
@@ -50,12 +53,19 @@ struct MainTabView: View {
                 }
                 .tag(TabItem.allDreams)
             
-            // AI分析
-            AIAnalysisView()
+            // 夢占い
+            DreamFortuneView()
                 .tabItem {
-                    Label(TabItem.aiAnalysis.title, systemImage: TabItem.aiAnalysis.icon)
+                    Label(TabItem.dreamFortune.title, systemImage: TabItem.dreamFortune.icon)
                 }
-                .tag(TabItem.aiAnalysis)
+                .tag(TabItem.dreamFortune)
+            
+            // 長期分析
+            LongTermAnalysisView()
+                .tabItem {
+                    Label(TabItem.longTermAnalysis.title, systemImage: TabItem.longTermAnalysis.icon)
+                }
+                .tag(TabItem.longTermAnalysis)
             
             // 設定
             SettingsView()
