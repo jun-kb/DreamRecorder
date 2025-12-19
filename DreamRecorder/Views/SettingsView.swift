@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     
+    @AppStorage("showMonthlyComparison") private var showMonthlyComparison = true
     @State private var showLogoutAlert = false
     @State private var showAnonymousLogoutAlert = false
     @State private var isLoggingOut = false
@@ -92,6 +93,23 @@ struct SettingsView: View {
                         .disabled(isLoggingOut)
                     } header: {
                         Text("アカウント")
+                            .foregroundColor(.dreamTextSecondary)
+                    }
+                    .listRowBackground(Color.dreamCard)
+                    
+                    // 長期分析セクション
+                    Section {
+                        Toggle(isOn: $showMonthlyComparison) {
+                            HStack {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundColor(.dreamAccent)
+                                Text("先月と比較を表示")
+                                    .foregroundColor(.dreamText)
+                            }
+                        }
+                        .tint(.dreamAccent)
+                    } header: {
+                        Text("長期分析")
                             .foregroundColor(.dreamTextSecondary)
                     }
                     .listRowBackground(Color.dreamCard)
