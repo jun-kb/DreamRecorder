@@ -3,7 +3,7 @@ import Combine
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
-import FirebaseAI
+import FirebaseAI // ここを VertexAI から AI に変更
 
 // Firebaseとの夢のやり取りを管理するクラス
 @MainActor
@@ -15,6 +15,9 @@ class DreamService: ObservableObject {
     
     private let db = Firestore.firestore()
     private var listenerRegistration: ListenerRegistration?
+    
+    // 修正: 最新SDKに合わせて FirebaseAI を使用
+    // ※もし backend: .googleAI() でエラーが出る場合は引数なしの .firebaseAI() を試してください
     private let ai = FirebaseAI.firebaseAI(backend: .googleAI())
     
     // 認証状態の変更（AuthManager）を監視して、リスナーを貼り替える
@@ -99,7 +102,7 @@ class DreamService: ObservableObject {
     }
 
     /// AI（Gemini）を使って夢を解釈し、結果をFirestoreに保存する
-    func interpretDream(dream: Dream, userId: String) async throws{
+    func interpretDream(dream: Dream, reflection: Reflection?, teller: FortuneTeller, userId: String) async throws {
         do {
             // 入力バリデーション
             guard let dreamId = dream.id else {
@@ -115,31 +118,47 @@ class DreamService: ObservableObject {
                 self.errorMessage = nil
             }
             
-            // deferでクリーンアップを保証（成功時もエラー時も必ず実行される）
-            // DreamService は @MainActor のため、ここでは同期的に状態をリセットする
+            // deferでクリーンアップを保証
             defer {
                 self.interpretingDreamId = nil
             }
             
-            // AIに渡すプロンプト（指示文）
-            let prompt = """
-            あなたは経験豊富な夢占いの専門家です。
-            以下の夢の内容を分析し、夢を見た人へポジティブで簡潔なアドバイス（100文字程度）をしてください。
-            結果は占いのテキストのみを返してください。
+            // AIに渡すプロンプト
+            let promptText: String
+            if let reflection {
+                promptText = """
+                以下の昨日の日記と夢の内容を関連付けて分析し、500文字程度で占ってください。回答は「今日の夢占いは〜、昨日の日記を踏まえると〜」で始めてください。
 
-            夢の内容:
-            \(dream.content)
-            """
+                夢の内容:
+                \(dream.content)
+
+                昨日の日記:
+                \(reflection.content)
+                """
+            } else {
+                promptText = """
+                夢の内容から200文字程度で占ってください。回答は「今日の夢占いは〜」で始めてください。
+
+                夢の内容:
+                \(dream.content)
+                """
+            }
                 
-            // Firebase AI (Gemini) を呼び出す
-            let model = ai.generativeModel(modelName: "gemini-2.5-flash")
-            let response = try await model.generateContent(prompt)
+            // モデルの初期化 (Gemini 1.5 Flash)
+            let model = ai.generativeModel(
+                modelName: "gemini-1.5-flash",
+                systemInstruction: ModelContent(role: "system", parts: teller.systemInstruction)
+            )
+            
+            // プロンプトを ModelContent で包んで渡す（String は PartsRepresentable に準拠）
+            let userContent = ModelContent(role: "user", parts: promptText)
+            let response = try await model.generateContent([userContent])
                 
             guard let interpretation = response.text else {
                 throw AppError.aiServiceError("AIからの応答が空でした。")
             }
                 
-            // Firestoreに結果（interpretation）を保存
+            // Firestoreに結果を保存
             try await db.collection("users")
                 .document(userId)
                 .collection("dreams")
@@ -151,17 +170,15 @@ class DreamService: ObservableObject {
             let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "DreamService.interpretDream")
             
-            // UIにエラーを表示
             await MainActor.run {
                 self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
             }
             
-            // エラーを再スローして呼び出し元に伝播
             throw appError
         }
     }
     
-    // 夢を更新 (編集)
+    // 夢を更新
     func updateDream(dream: Dream, newContent: String, resetInterpretation: Bool, userId: String) async throws {
         guard let dreamId = dream.id else {
             throw AppError.missingDocumentId("夢")
@@ -170,17 +187,14 @@ class DreamService: ObservableObject {
             throw AppError.invalidUserId
         }
         
-        // 更新するデータを準備
         var dataToUpdate: [String: Any] = [
             "content": newContent
         ]
         
         if resetInterpretation {
-            // interpretation フィールドを削除（nil に設定）します
             dataToUpdate["interpretation"] = FieldValue.delete()
         }
             
-        // content と (必要なら) interpretation を更新
         try await db.collection("users")
             .document(userId)
             .collection("dreams")

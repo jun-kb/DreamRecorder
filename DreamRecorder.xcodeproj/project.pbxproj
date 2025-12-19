@@ -99,12 +99,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		88A4DC4C2EF58B1E005D1995 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		BFE12F602EA9E558009C8FD1 = {
 			isa = PBXGroup;
 			children = (
 				BFC0CBAC2EB886F3000AB90B /* README.md */,
 				BFC0CBA22EB87F6E000AB90B /* .gitignore */,
 				BFE12F6B2EA9E558009C8FD1 /* DreamRecorder */,
+				88A4DC4C2EF58B1E005D1995 /* Frameworks */,
 				BFE12F6A2EA9E558009C8FD1 /* Products */,
 			);
 			sourceTree = "<group>";

@@ -580,8 +580,22 @@ struct DailyDetailView: View {
     
     private func reinterpret(dream: Dream) async {
         guard let userId = authManager.userId else { return }
+        // 同日の reflection があれば渡し、占い師はデフォルトで最初の候補を使う
+        let reflectionForDay = reflectionsForDay.first
+        guard let teller = FortuneTellerManager.allFortuneTellers.first else {
+            await MainActor.run {
+                errorMessage = "占い師の設定を読み込めませんでした。"
+                showError = true
+            }
+            return
+        }
         do {
-            try await dreamService.interpretDream(dream: dream, userId: userId)
+            try await dreamService.interpretDream(
+                dream: dream,
+                reflection: reflectionForDay,
+                teller: teller,
+                userId: userId
+            )
         } catch {
             let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "DailyDetailView.reinterpret")
