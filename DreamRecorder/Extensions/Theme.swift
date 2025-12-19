@@ -7,6 +7,8 @@ extension Color {
     static let dreamAccent = Color(hex: "A366FF")          // Bright Purple
     static let dreamText = Color.white
     static let dreamTextSecondary = Color.white.opacity(0.7)
+    static let dreamIndicator = Color(hex: "B388FF")      // Soft Purple - 夢用
+    static let reflectionIndicator = Color(hex: "FFB388") // Soft Orange - 日記用
     
     // Hex init helper
     init(hex: String) {
