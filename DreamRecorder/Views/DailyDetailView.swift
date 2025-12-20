@@ -38,6 +38,7 @@ struct DailyDetailView: View {
     @State private var currentDate: Date
     @State private var slideDirection: SlideDirection = .forward
     @State private var interpretationToShow: String?
+    @State private var showDatePicker = false
     
     init(date: Date) {
         self.date = date
@@ -78,6 +79,9 @@ struct DailyDetailView: View {
                 AddReflectionView(recordDate: currentDate, reflectionToEdit: target)
                     .id(context.id)
             }
+        }
+        .sheet(isPresented: $showDatePicker) {
+            datePickerSheet
         }
         .alert("エラー", isPresented: $showError) {
             Button("OK", role: .cancel) { }
@@ -222,7 +226,8 @@ struct DailyDetailView: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
-                    .allowsHitTesting(false)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showDatePicker = true }
             }
             .frame(maxWidth: .infinity)
         }
@@ -542,6 +547,35 @@ struct DailyDetailView: View {
             currentDate = newDate
         }
     }
+
+    private var datePickerSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.clear.dreamBackground()
+                    .ignoresSafeArea()
+                
+                VStack(alignment: .leading, spacing: 16) {
+                    DatePicker(
+                        "日付を選択",
+                        selection: $currentDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .tint(.dreamAccent)
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("日付を選ぶ")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") { showDatePicker = false }
+                        .foregroundColor(.dreamAccent)
+                }
+            }
+        }
+    }
     
     private func feedbackSelection() {
         let generator = UINotificationFeedbackGenerator()
@@ -558,8 +592,25 @@ struct DailyDetailView: View {
     
     private func reinterpret(dream: Dream) async {
         guard let userId = authManager.userId else { return }
+        
+        // 前日の日記を取得（DreamFortuneViewと同じロジック）
+        let yesterdayDate = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+        let yesterdayReflection = reflectionService.reflections.first { Calendar.current.isDate($0.recordDate, inSameDayAs: yesterdayDate) }
+        
+        guard let teller = FortuneTellerManager.allFortuneTellers.first else {
+            await MainActor.run {
+                errorMessage = "占い師の設定を読み込めませんでした。"
+                showError = true
+            }
+            return
+        }
         do {
-            try await dreamService.interpretDream(dream: dream, userId: userId)
+            try await dreamService.interpretDream(
+                dream: dream,
+                reflection: yesterdayReflection,
+                teller: teller,
+                userId: userId
+            )
         } catch {
             let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "DailyDetailView.reinterpret")
