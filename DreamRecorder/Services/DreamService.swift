@@ -125,7 +125,7 @@ class DreamService: ObservableObject {
             
             // AIに渡すプロンプト
             let promptText: String
-            if let reflection {
+            if let reflection = reflection {
                 promptText = """
                 以下の昨日の日記と夢の内容を関連付けて分析し、500文字程度で占ってください。回答は「今日の夢占いは〜、昨日の日記を踏まえると〜」で始めてください。
 

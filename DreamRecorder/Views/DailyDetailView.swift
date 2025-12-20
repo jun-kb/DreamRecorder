@@ -385,12 +385,12 @@ struct DailyDetailView: View {
                 Spacer()
                 
                 HStack(spacing: 10) {
-                    Button {
-                        Task { await reinterpret(dream: dream) }
+                    NavigationLink {
+                        DreamFortuneView(initialDate: currentDate)
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkles")
-                            Text(dream.interpretation == nil ? "AI占い" : "再解釈")
+                            Text("夢占い")
                         }
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundColor(.dreamAccent)
@@ -399,7 +399,7 @@ struct DailyDetailView: View {
                         .background(Color.dreamAccent.opacity(0.18))
                         .cornerRadius(14)
                     }
-                    .disabled(isInterpreting)
+                    .buttonStyle(.plain)
 
                     Menu {
                         Button {
@@ -588,37 +588,6 @@ struct DailyDetailView: View {
     
     private func openReflectionSheet(editing reflection: Reflection?) {
         sheetContext = SheetContext(type: .reflection(reflection))
-    }
-    
-    private func reinterpret(dream: Dream) async {
-        guard let userId = authManager.userId else { return }
-        
-        // 前日の日記を取得（DreamFortuneViewと同じロジック）
-        let yesterdayDate = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
-        let yesterdayReflection = reflectionService.reflections.first { Calendar.current.isDate($0.recordDate, inSameDayAs: yesterdayDate) }
-        
-        guard let teller = FortuneTellerManager.allFortuneTellers.first else {
-            await MainActor.run {
-                errorMessage = "占い師の設定を読み込めませんでした。"
-                showError = true
-            }
-            return
-        }
-        do {
-            try await dreamService.interpretDream(
-                dream: dream,
-                reflection: yesterdayReflection,
-                teller: teller,
-                userId: userId
-            )
-        } catch {
-            let appError = ErrorLogger.classify(error, context: .ai)
-            ErrorLogger.logError(appError, context: "DailyDetailView.reinterpret")
-            await MainActor.run {
-                errorMessage = ErrorLogger.userFacingMessage(from: appError)
-                showError = true
-            }
-        }
     }
     
     private func deleteDream(_ dream: Dream) async {
