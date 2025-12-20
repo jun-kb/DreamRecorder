@@ -614,8 +614,11 @@ struct DailyDetailView: View {
     
     private func reinterpret(dream: Dream) async {
         guard let userId = authManager.userId else { return }
-        // 同日の reflection があれば渡し、占い師はデフォルトで最初の候補を使う
-        let reflectionForDay = reflectionsForDay.first
+        
+        // 前日の日記を取得（DreamFortuneViewと同じロジック）
+        let yesterdayDate = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+        let yesterdayReflection = reflectionService.reflections.first { Calendar.current.isDate($0.recordDate, inSameDayAs: yesterdayDate) }
+        
         guard let teller = FortuneTellerManager.allFortuneTellers.first else {
             await MainActor.run {
                 errorMessage = "占い師の設定を読み込めませんでした。"
@@ -626,7 +629,7 @@ struct DailyDetailView: View {
         do {
             try await dreamService.interpretDream(
                 dream: dream,
-                reflection: reflectionForDay,
+                reflection: yesterdayReflection,
                 teller: teller,
                 userId: userId
             )

@@ -144,9 +144,9 @@ class DreamService: ObservableObject {
                 """
             }
                 
-            // モデルの初期化 (Gemini 1.5 Flash)
+            // モデルの初期化 (Gemini 2.5 Flash)
             let model = ai.generativeModel(
-                modelName: "gemini-1.5-flash",
+                modelName: "gemini-2.5-flash",
                 systemInstruction: ModelContent(role: "system", parts: teller.systemInstruction)
             )
             
