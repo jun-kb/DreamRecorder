@@ -40,7 +40,8 @@ struct DreamFortuneView: View {
     @State private var selectedDate: Date
     @State private var isFortuning = false
     @State private var resultText: String = ""
-    @State private var errorMessage: String?
+    @State private var showError = false
+    @State private var errorMessage = ""
     @State private var showDatePicker = false
     @State private var tellerProfileToShow: FortuneTeller?
     @State private var fortuneAlert: FortuneAlert?
@@ -110,10 +111,10 @@ struct DreamFortuneView: View {
                     AddReflectionView(recordDate: date)
                 }
             }
-            .alert("エラー", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+            .alert("エラー", isPresented: $showError) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text(errorMessage ?? "")
+                Text(errorMessage)
             }
             .alert("夢の記録がありません", isPresented: Binding(
                 get: { fortuneAlert == .noDream },
@@ -137,6 +138,13 @@ struct DreamFortuneView: View {
             }
             .onChange(of: selectedDate) { _, _ in
                 resultText = ""
+            }
+            .onChange(of: dreamService.errorMessage) { _, newValue in
+                if let error = newValue {
+                    errorMessage = error
+                    showError = true
+                    dreamService.errorMessage = nil
+                }
             }
         }
     }
@@ -370,12 +378,15 @@ struct DreamFortuneView: View {
     
     private func startFortune(dream: Dream, reflection: Reflection?) {
         guard let userId = authManager.userId, !userId.isEmpty else {
-            errorMessage = "サインインすると占いが利用できます"
+            let error = AppError.authenticationRequired
+            ErrorLogger.logError(error, context: "DreamFortuneView.startFortune")
+            errorMessage = ErrorLogger.userFacingMessage(from: error)
+            showError = true
             return
         }
 
         isFortuning = true
-        errorMessage = nil
+        errorMessage = ""
         resultText = ""
         
         Task {
@@ -394,6 +405,7 @@ struct DreamFortuneView: View {
                 ErrorLogger.logError(appError, context: "DreamFortuneView.handleFortune")
                 await MainActor.run {
                     errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                    showError = true
                     isFortuning = false
                 }
             }

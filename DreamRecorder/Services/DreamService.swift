@@ -144,9 +144,9 @@ class DreamService: ObservableObject {
                 """
             }
                 
-            // モデルの初期化 (Gemini 1.5 Flash)
+            // モデルの初期化 (Gemini 2.5 Flash)
             let model = ai.generativeModel(
-                modelName: "gemini-1.5-flash",
+                modelName: "gemini-2.5-flash",
                 systemInstruction: ModelContent(role: "system", parts: teller.systemInstruction)
             )
             
@@ -166,14 +166,9 @@ class DreamService: ObservableObject {
                 .updateData(["interpretation": interpretation])
                 
         } catch {
-            // エラーハンドリング
+            // エラーハンドリング（呼び出し元でUIエラー表示を行うため、ここではログ記録のみ）
             let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "DreamService.interpretDream")
-            
-            await MainActor.run {
-                self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
-            }
-            
             throw appError
         }
     }
