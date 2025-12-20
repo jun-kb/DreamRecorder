@@ -166,14 +166,9 @@ class DreamService: ObservableObject {
                 .updateData(["interpretation": interpretation])
                 
         } catch {
-            // エラーハンドリング
+            // エラーハンドリング（呼び出し元でUIエラー表示を行うため、ここではログ記録のみ）
             let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "DreamService.interpretDream")
-            
-            await MainActor.run {
-                self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
-            }
-            
             throw appError
         }
     }
