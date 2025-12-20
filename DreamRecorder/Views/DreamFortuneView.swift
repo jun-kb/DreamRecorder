@@ -37,7 +37,7 @@ struct DreamFortuneView: View {
         description: "デフォルトの占い師",
         systemInstruction: ""
     )
-    @State private var selectedDate: Date = Date()
+    @State private var selectedDate: Date
     @State private var isFortuning = false
     @State private var resultText: String = ""
     @State private var errorMessage: String?
@@ -46,6 +46,10 @@ struct DreamFortuneView: View {
     @State private var fortuneAlert: FortuneAlert?
     @State private var activeSheet: FortuneSheet?
     @State private var pendingFortuneDream: Dream?
+
+    init(initialDate: Date? = nil) {
+        _selectedDate = State(initialValue: initialDate ?? Date())
+    }
     
     private var selectedDream: Dream? {
         dreamService.dreams.first { Calendar.current.isDate($0.recordDate, inSameDayAs: selectedDate) }
