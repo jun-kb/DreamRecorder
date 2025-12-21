@@ -237,7 +237,7 @@ struct AddDreamView: View {
         // 3. 夢の内容が変更されている
         // 上記3つの条件をすべて満たす場合のみ、アラートを表示
         if isEditing,
-            dreamToEdit?.interpretation != nil,
+            dreamToEdit?.hasAnyInterpretation == true,
             dreamToEdit?.content != content {
             
             showResetAlert = true // アラートを表示

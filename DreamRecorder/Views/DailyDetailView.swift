@@ -441,7 +441,7 @@ struct DailyDetailView: View {
                 .font(.dreamBody)
                 .foregroundColor(.dreamText)
             
-            if let interpretation = dream.interpretation {
+            if let interpretation = dream.anyInterpretation {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "sparkles")
                         .font(.caption)
