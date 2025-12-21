@@ -276,13 +276,33 @@ struct AddDreamView: View {
                     resetInterpretation: resetInterpretation, // ⇐ アラートの結果を渡す
                     userId: userId
                 )
+                
+                // 内容が変更された場合は再分析（バックグラウンドで実行）
+                if resetInterpretation, let dreamId = dreamToEdit.id {
+                    Task {
+                        await dreamService.analyzeDreamScores(
+                            dreamId: dreamId,
+                            content: content,
+                            userId: userId
+                        )
+                    }
+                }
             } else {
                 // 追加モード
-                try await dreamService.saveDream(
+                let dreamId = try await dreamService.saveDream(
                     content: content,
                     recordDate: self.recordDate,
                     userId: userId
                 )
+                
+                // 保存後にバックグラウンドで6属性分析を実行
+                Task {
+                    await dreamService.analyzeDreamScores(
+                        dreamId: dreamId,
+                        content: content,
+                        userId: userId
+                    )
+                }
             }
             
             await MainActor.run {

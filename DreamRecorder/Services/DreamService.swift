@@ -3,7 +3,7 @@ import Combine
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
-import FirebaseAI
+import FirebaseAI // ここを VertexAI から AI に変更
 
 // Firebaseとの夢のやり取りを管理するクラス
 @MainActor
@@ -15,6 +15,9 @@ class DreamService: ObservableObject {
     
     private let db = Firestore.firestore()
     private var listenerRegistration: ListenerRegistration?
+    
+    // 修正: 最新SDKに合わせて FirebaseAI を使用
+    // ※もし backend: .googleAI() でエラーが出る場合は引数なしの .firebaseAI() を試してください
     private let ai = FirebaseAI.firebaseAI(backend: .googleAI())
     
     // 認証状態の変更（AuthManager）を監視して、リスナーを貼り替える
@@ -64,8 +67,9 @@ class DreamService: ObservableObject {
         }
     }
     
-    // 夢を保存
-    func saveDream(content: String, recordDate: Date, userId: String) async throws {
+    // 夢を保存（保存したドキュメントIDを返す）
+    @discardableResult
+    func saveDream(content: String, recordDate: Date, userId: String) async throws -> String {
         guard !userId.isEmpty else {
             throw AppError.authenticationRequired
         }
@@ -76,10 +80,12 @@ class DreamService: ObservableObject {
             createdAt: Date()
         )
         
-        try db.collection("users")
+        let docRef = try db.collection("users")
             .document(userId)
             .collection("dreams")
             .addDocument(from: dream)
+        
+        return docRef.documentID
     }
     
     // 夢を削除
@@ -99,7 +105,7 @@ class DreamService: ObservableObject {
     }
 
     /// AI（Gemini）を使って夢を解釈し、結果をFirestoreに保存する
-    func interpretDream(dream: Dream, userId: String) async throws{
+    func interpretDream(dream: Dream, reflection: Reflection?, teller: FortuneTeller, userId: String) async throws {
         do {
             // 入力バリデーション
             guard let dreamId = dream.id else {
@@ -115,31 +121,47 @@ class DreamService: ObservableObject {
                 self.errorMessage = nil
             }
             
-            // deferでクリーンアップを保証（成功時もエラー時も必ず実行される）
-            // DreamService は @MainActor のため、ここでは同期的に状態をリセットする
+            // deferでクリーンアップを保証
             defer {
                 self.interpretingDreamId = nil
             }
             
-            // AIに渡すプロンプト（指示文）
-            let prompt = """
-            あなたは経験豊富な夢占いの専門家です。
-            以下の夢の内容を分析し、夢を見た人へポジティブで簡潔なアドバイス（100文字程度）をしてください。
-            結果は占いのテキストのみを返してください。
+            // AIに渡すプロンプト
+            let promptText: String
+            if let reflection = reflection {
+                promptText = """
+                以下の昨日の日記と夢の内容を関連付けて分析し、500文字程度で占ってください。回答は「今日の夢占いは〜、昨日の日記を踏まえると〜」で始めてください。
 
-            夢の内容:
-            \(dream.content)
-            """
+                夢の内容:
+                \(dream.content)
+
+                昨日の日記:
+                \(reflection.content)
+                """
+            } else {
+                promptText = """
+                夢の内容から200文字程度で占ってください。回答は「今日の夢占いは〜」で始めてください。
+
+                夢の内容:
+                \(dream.content)
+                """
+            }
                 
-            // Firebase AI (Gemini) を呼び出す
-            let model = ai.generativeModel(modelName: "gemini-2.5-flash")
-            let response = try await model.generateContent(prompt)
+            // モデルの初期化 (Gemini 2.5 Flash)
+            let model = ai.generativeModel(
+                modelName: "gemini-2.5-flash",
+                systemInstruction: ModelContent(role: "system", parts: teller.systemInstruction)
+            )
+            
+            // プロンプトを ModelContent で包んで渡す（String は PartsRepresentable に準拠）
+            let userContent = ModelContent(role: "user", parts: promptText)
+            let response = try await model.generateContent([userContent])
                 
             guard let interpretation = response.text else {
                 throw AppError.aiServiceError("AIからの応答が空でした。")
             }
                 
-            // Firestoreに結果（interpretation）を保存
+            // Firestoreに結果を保存
             try await db.collection("users")
                 .document(userId)
                 .collection("dreams")
@@ -147,21 +169,14 @@ class DreamService: ObservableObject {
                 .updateData(["interpretation": interpretation])
                 
         } catch {
-            // エラーハンドリング
+            // エラーハンドリング（呼び出し元でUIエラー表示を行うため、ここではログ記録のみ）
             let appError = ErrorLogger.classify(error, context: .ai)
             ErrorLogger.logError(appError, context: "DreamService.interpretDream")
-            
-            // UIにエラーを表示
-            await MainActor.run {
-                self.errorMessage = ErrorLogger.userFacingMessage(from: appError)
-            }
-            
-            // エラーを再スローして呼び出し元に伝播
             throw appError
         }
     }
     
-    // 夢を更新 (編集)
+    // 夢を更新
     func updateDream(dream: Dream, newContent: String, resetInterpretation: Bool, userId: String) async throws {
         guard let dreamId = dream.id else {
             throw AppError.missingDocumentId("夢")
@@ -170,21 +185,135 @@ class DreamService: ObservableObject {
             throw AppError.invalidUserId
         }
         
-        // 更新するデータを準備
         var dataToUpdate: [String: Any] = [
             "content": newContent
         ]
         
         if resetInterpretation {
-            // interpretation フィールドを削除（nil に設定）します
             dataToUpdate["interpretation"] = FieldValue.delete()
         }
             
-        // content と (必要なら) interpretation を更新
         try await db.collection("users")
             .document(userId)
             .collection("dreams")
             .document(dreamId)
             .updateData(dataToUpdate)
     }
+    
+    // MARK: - 長期分析用スコア算出
+    
+    /// 夢分析スコア用のJSON Schema
+    private var analysisScoresSchema: Schema {
+        Schema.object(
+            properties: [
+                "serenity": .double(),
+                "vitality": .double(),
+                "connection": .double(),
+                "creativity": .double(),
+                "security": .double(),
+                "awareness": .double()
+            ]
+        )
+    }
+    
+    /// AI（Gemini）を使って夢の6属性スコアを分析し、Firestoreに保存する
+    /// - Note: 分析失敗時も夢の保存自体には影響しない（非クリティカルエラー）
+    func analyzeDreamScores(dreamId: String, content: String, userId: String) async {
+        do {
+            guard !userId.isEmpty else {
+                throw AppError.invalidUserId
+            }
+            
+            // AIプロンプト
+            let promptText = """
+            夢の内容を分析し、以下の6属性について0.0〜1.0のスコアで評価してください。
+            各属性は「高い値=ポジティブ」として評価してください。
+            
+            - serenity: 心の穏やかさ、感情の安定度（高い=安らぎがある）
+            - vitality: エネルギー、行動力、冒険心（高い=活動的で前向き）
+            - connection: 人とのつながり、社会的相互作用（高い=人間関係が豊か）
+            - creativity: 想像力、象徴性、非現実的要素（高い=幻想的で創造的）
+            - security: 安心感、保護感（高い=脅威がなく安心できる）
+            - awareness: 夢の中での気づき、自己認識（高い=意識的で洞察がある）
+            
+            夢の内容:
+            \(content)
+            """
+            
+            // モデルの初期化（JSON Schema を使用）
+            let model = ai.generativeModel(
+                modelName: "gemini-2.5-flash",
+                generationConfig: GenerationConfig(
+                    responseMIMEType: "application/json",
+                    responseSchema: analysisScoresSchema
+                ),
+                systemInstruction: ModelContent(role: "system", parts: "あなたは夢分析の専門家です。夢の内容を客観的に分析し、各属性のスコアを返してください。")
+            )
+            
+            let userContent = ModelContent(role: "user", parts: promptText)
+            let response = try await model.generateContent([userContent])
+            
+            guard let responseText = response.text else {
+                throw AppError.aiServiceError("AIからの応答が空でした。")
+            }
+            
+            // JSONをデコード（responseSchemaにより確実にJSON形式で返ってくる）
+            guard let jsonData = responseText.data(using: .utf8) else {
+                throw AppError.aiServiceError("JSONデータの変換に失敗しました。")
+            }
+            
+            let decoded = try JSONDecoder().decode(AnalysisScoresResponse.self, from: jsonData)
+            
+            // スコアをクランプしてDreamAnalysisScoresを作成
+            let scores = DreamAnalysisScores(
+                serenity: clampScore(decoded.serenity),
+                vitality: clampScore(decoded.vitality),
+                connection: clampScore(decoded.connection),
+                creativity: clampScore(decoded.creativity),
+                security: clampScore(decoded.security),
+                awareness: clampScore(decoded.awareness),
+                analyzedAt: Date()
+            )
+            
+            // Firestoreに保存
+            let scoresData: [String: Any] = [
+                "analysisScores": [
+                    "serenity": scores.serenity,
+                    "vitality": scores.vitality,
+                    "connection": scores.connection,
+                    "creativity": scores.creativity,
+                    "security": scores.security,
+                    "awareness": scores.awareness,
+                    "analyzedAt": Timestamp(date: scores.analyzedAt)
+                ]
+            ]
+            
+            try await db.collection("users")
+                .document(userId)
+                .collection("dreams")
+                .document(dreamId)
+                .updateData(scoresData)
+            
+        } catch {
+            // 非クリティカルエラー：ログ記録のみ、ユーザーには通知しない
+            let appError = ErrorLogger.classify(error, context: .ai)
+            ErrorLogger.logError(appError, context: "DreamService.analyzeDreamScores")
+        }
+    }
+    
+    /// スコアを0.0〜1.0の範囲にクランプ
+    private func clampScore(_ value: Double) -> Double {
+        max(0.0, min(1.0, value))
+    }
+}
+
+// MARK: - AI Response Model
+
+private struct AnalysisScoresResponse: Decodable {
+    let serenity: Double
+    let vitality: Double
+    let connection: Double
+    let creativity: Double
+    let security: Double
+    let awareness: Double
 }

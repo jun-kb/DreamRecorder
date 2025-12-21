@@ -38,6 +38,7 @@ struct DailyDetailView: View {
     @State private var currentDate: Date
     @State private var slideDirection: SlideDirection = .forward
     @State private var interpretationToShow: String?
+    @State private var showDatePicker = false
     
     init(date: Date) {
         self.date = date
@@ -78,6 +79,9 @@ struct DailyDetailView: View {
                 AddReflectionView(recordDate: currentDate, reflectionToEdit: target)
                     .id(context.id)
             }
+        }
+        .sheet(isPresented: $showDatePicker) {
+            datePickerSheet
         }
         .alert("エラー", isPresented: $showError) {
             Button("OK", role: .cancel) { }
@@ -222,7 +226,8 @@ struct DailyDetailView: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
-                    .allowsHitTesting(false)
+                    .contentShape(Rectangle())
+                    .onTapGesture { showDatePicker = true }
             }
             .frame(maxWidth: .infinity)
         }
@@ -380,12 +385,12 @@ struct DailyDetailView: View {
                 Spacer()
                 
                 HStack(spacing: 10) {
-                    Button {
-                        Task { await reinterpret(dream: dream) }
+                    NavigationLink {
+                        DreamFortuneView(initialDate: currentDate)
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkles")
-                            Text(dream.interpretation == nil ? "AI占い" : "再解釈")
+                            Text("夢占い")
                         }
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundColor(.dreamAccent)
@@ -394,7 +399,7 @@ struct DailyDetailView: View {
                         .background(Color.dreamAccent.opacity(0.18))
                         .cornerRadius(14)
                     }
-                    .disabled(isInterpreting)
+                    .buttonStyle(.plain)
 
                     Menu {
                         Button {
@@ -542,6 +547,35 @@ struct DailyDetailView: View {
             currentDate = newDate
         }
     }
+
+    private var datePickerSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.clear.dreamBackground()
+                    .ignoresSafeArea()
+                
+                VStack(alignment: .leading, spacing: 16) {
+                    DatePicker(
+                        "日付を選択",
+                        selection: $currentDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .tint(.dreamAccent)
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("日付を選ぶ")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") { showDatePicker = false }
+                        .foregroundColor(.dreamAccent)
+                }
+            }
+        }
+    }
     
     private func feedbackSelection() {
         let generator = UINotificationFeedbackGenerator()
@@ -554,20 +588,6 @@ struct DailyDetailView: View {
     
     private func openReflectionSheet(editing reflection: Reflection?) {
         sheetContext = SheetContext(type: .reflection(reflection))
-    }
-    
-    private func reinterpret(dream: Dream) async {
-        guard let userId = authManager.userId else { return }
-        do {
-            try await dreamService.interpretDream(dream: dream, userId: userId)
-        } catch {
-            let appError = ErrorLogger.classify(error, context: .ai)
-            ErrorLogger.logError(appError, context: "DailyDetailView.reinterpret")
-            await MainActor.run {
-                errorMessage = ErrorLogger.userFacingMessage(from: appError)
-                showError = true
-            }
-        }
     }
     
     private func deleteDream(_ dream: Dream) async {
