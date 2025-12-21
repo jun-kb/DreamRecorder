@@ -1,4 +1,10 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 private enum FortuneAlert: Identifiable {
     case noDream
@@ -32,7 +38,8 @@ struct DreamFortuneView: View {
     
     @State private var selectedTeller: FortuneTeller = FortuneTellerManager.allFortuneTellers.first ?? FortuneTeller(
         name: "運命の女神 ノルン",
-        imageName: "sparkles",
+        iconImageName: "sparkles",
+        profileImageName: "sparkles",
         themeColor: .purple,
         description: "デフォルトの占い師",
         systemInstruction: ""
@@ -168,12 +175,7 @@ struct DreamFortuneView: View {
                                 }
                             } label: {
                                 HStack(spacing: 12) {
-                                    Image(systemName: teller.imageName)
-                                        .font(.system(size: 20, weight: .bold))
-                                        .frame(width: 42, height: 42)
-                                        .foregroundColor(teller.themeColor)
-                                        .background(teller.themeColor.opacity(0.15))
-                                        .clipShape(Circle())
+                                    tellerIconView(teller)
                                     
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(teller.name)
@@ -348,6 +350,74 @@ struct DreamFortuneView: View {
             .frame(minHeight: 200, maxHeight: 320)
         }
     }
+
+    // MARK: - Fortune Teller Images
+
+    private func tellerIconView(_ teller: FortuneTeller) -> some View {
+        Group {
+            if let image = assetImage(named: teller.iconImageName) {
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 42, height: 42)
+                    .clipShape(Circle())
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(6)
+                    .foregroundColor(teller.themeColor)
+            }
+        }
+        .frame(width: 42, height: 42)
+        .background(teller.themeColor.opacity(0.12))
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(teller.themeColor.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    private func tellerProfileImageView(_ teller: FortuneTeller) -> some View {
+        ZStack {
+            if let image = assetImage(named: teller.profileImageName) {
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+            } else {
+                LinearGradient(
+                    colors: [teller.themeColor.opacity(0.45), Color.black.opacity(0.35)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("プロフィール画像を追加してください")
+                        .font(.dreamBody)
+                        .foregroundColor(.white.opacity(0.9))
+                    Text(teller.name)
+                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+            }
+        }
+    }
+
+    private func assetImage(named name: String) -> Image? {
+        #if canImport(UIKit)
+        if let uiImage = UIImage(named: name) {
+            return Image(uiImage: uiImage)
+        }
+        #elseif canImport(AppKit)
+        if let nsImage = NSImage(named: name) {
+            return Image(nsImage: nsImage)
+        }
+        #endif
+        return nil
+    }
     
     private func shiftDate(by value: Int) {
         guard let newDate = Calendar.current.date(byAdding: .day, value: value, to: selectedDate) else { return }
@@ -419,13 +489,18 @@ struct DreamFortuneView: View {
                     .ignoresSafeArea()
                 
                 VStack(alignment: .leading, spacing: 16) {
+                    tellerProfileImageView(teller)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 240)
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+
                     HStack(spacing: 12) {
-                        Image(systemName: teller.imageName)
-                            .font(.system(size: 26, weight: .bold))
-                            .foregroundColor(teller.themeColor)
+                        tellerIconView(teller)
                             .frame(width: 52, height: 52)
-                            .background(teller.themeColor.opacity(0.15))
-                            .clipShape(Circle())
                         VStack(alignment: .leading, spacing: 6) {
                             Text(teller.name)
                                 .font(.system(.title3, design: .rounded, weight: .semibold))
