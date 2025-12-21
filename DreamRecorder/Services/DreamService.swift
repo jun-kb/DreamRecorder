@@ -130,7 +130,7 @@ class DreamService: ObservableObject {
             let promptText: String
             if let reflection = reflection {
                 promptText = """
-                以下の昨日の日記と夢の内容を関連付けて分析し、500文字程度で占ってください。回答は「今日の夢占いは〜、昨日の日記を踏まえると〜」で始めてください。
+                以下の昨日の日記と夢の内容を関連付けて分析し、300文字程度で占ってください。回答は「今日の夢占いは〜、昨日の日記を踏まえると〜」の形式で。
 
                 夢の内容:
                 \(dream.content)
@@ -140,7 +140,7 @@ class DreamService: ObservableObject {
                 """
             } else {
                 promptText = """
-                夢の内容から200文字程度で占ってください。回答は「今日の夢占いは〜」で始めてください。
+                夢の内容から100文字程度で占ってください。回答は「今日の夢占いは〜」で始めてください。
 
                 夢の内容:
                 \(dream.content)

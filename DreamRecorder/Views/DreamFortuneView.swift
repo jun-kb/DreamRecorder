@@ -259,6 +259,7 @@ struct DreamFortuneView: View {
     private var dailySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             compactDailyHeader
+            compactRecords
             actionButton
             resultContent
         }
@@ -385,7 +386,90 @@ struct DreamFortuneView: View {
                     .padding()
                 }
             }
-            .frame(minHeight: 200, maxHeight: 320)
+            .frame(minHeight: 170, maxHeight: 260)
+        }
+    }
+
+    private var compactRecords: some View {
+        VStack(spacing: 10) {
+            if let dream = selectedDream {
+                NavigationLink {
+                    DailyDetailView(date: dream.recordDate)
+                } label: {
+                    FortuneCompactRow(title: "夢", content: dream.content)
+                }
+                .buttonStyle(.plain)
+            } else {
+                AddPromptRow(type: .dream) {
+                    activeSheet = .addDream(selectedDate)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let reflection = yesterdayReflection {
+                NavigationLink {
+                    DailyDetailView(date: reflection.recordDate)
+                } label: {
+                    FortuneCompactRow(title: "日記", content: reflection.content)
+                }
+                .buttonStyle(.plain)
+            } else {
+                AddPromptRow(type: .reflection) {
+                    activeSheet = .addReflection(yesterdayDate)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private struct FortuneCompactRow: View {
+        let title: String
+        let content: String
+        var body: some View {
+            HStack(spacing: 10) {
+                FortuneRowBadge(title: title)
+                Text(content)
+                    .font(.dreamBody)
+                    .foregroundColor(.dreamText)
+                    .lineLimit(1)
+                Spacer()
+                FortuneNavigationArrow()
+            }
+            .padding(12)
+            .background(Color.dreamCard.opacity(0.9))
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+        }
+    }
+
+    private struct FortuneRowBadge: View {
+        let title: String
+        var body: some View {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(.dreamAccent)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.dreamAccent.opacity(0.16))
+                .cornerRadius(10)
+        }
+    }
+
+    private struct FortuneNavigationArrow: View {
+        var body: some View {
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.dreamAccent)
+                .padding(8)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
         }
     }
 
