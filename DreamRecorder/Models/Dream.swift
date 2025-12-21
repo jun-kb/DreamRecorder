@@ -8,44 +8,9 @@ struct Dream: Identifiable, Codable, Equatable {
     let recordDate: Date
     let createdAt: Date
     var interpretation: String?
-    var interpretations: [String: String]?
     
     // 6属性分析スコア (0.0〜1.0)
     var analysisScores: DreamAnalysisScores?
-}
-
-extension Dream {
-    /// Returns interpretation for specific teller id, falling back to legacy single value.
-    func interpretation(for tellerId: String?) -> String? {
-        if let tellerId, let text = interpretations?[tellerId], !text.isEmpty {
-            return text
-        }
-        if let legacy = interpretation, !legacy.isEmpty {
-            return legacy
-        }
-        return nil
-    }
-    /// Returns any available interpretation (deterministic by sorted key) for generic display.
-    var anyInterpretation: String? {
-        if let interpretations {
-            if let entry = interpretations
-                .filter({ !$0.value.isEmpty })
-                .sorted(by: { $0.key < $1.key })
-                .first {
-                return entry.value
-            }
-        }
-        if let legacy = interpretation, !legacy.isEmpty {
-            return legacy
-        }
-        return nil
-    }
-    var hasAnyInterpretation: Bool {
-        if let interpretations, interpretations.values.contains(where: { !$0.isEmpty }) {
-            return true
-        }
-        return interpretation != nil && !(interpretation ?? "").isEmpty
-    }
 }
 
 // MARK: - Dream Analysis Scores

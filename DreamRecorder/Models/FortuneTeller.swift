@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FortuneTeller: Identifiable {
-    let id: String
+    let id: UUID = UUID()
     let name: String
     
     // 画像関連: アイコンと立ち絵を分離
@@ -20,7 +20,6 @@ enum FortuneTellerManager {
     static let allFortuneTellers: [FortuneTeller] = [
         // キャラクター1: ノルン（エアラ）
         FortuneTeller(
-            id: "norn",
             name: "運命の女神 ノルン",
             iconImageName: "norn_icon",       // Assetsにこの名前で画像を追加してください
             profileImageName: "norn_profile", // Assetsにこの名前で画像を追加してください
@@ -44,7 +43,6 @@ enum FortuneTellerManager {
         
         // キャラクター2: モルペウス
         FortuneTeller(
-            id: "morpheus",
             name: "夢の神 モルペウス",
             iconImageName: "morpheus_icon",       // Assetsにこの名前で画像を追加してください
             profileImageName: "morpheus_profile", // Assetsにこの名前で画像を追加してください

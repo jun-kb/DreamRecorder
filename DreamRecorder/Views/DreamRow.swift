@@ -46,18 +46,12 @@ private extension DreamRow {
     
     @ViewBuilder
     var interpretationArea: some View {
-        let defaultTeller = FortuneTellerManager.allFortuneTellers.first
-        let defaultInterpretation = dream.interpretation(for: defaultTeller?.id)
-        let displayInterpretation = defaultInterpretation ?? dream.anyInterpretation
-        if let interpretation = displayInterpretation {
+        if let interpretation = dream.interpretation {
             interpretationView(text: interpretation)
-            if defaultInterpretation == nil, dreamService.interpretingDreamId != dream.id {
-                interpretButton(defaultTeller: defaultTeller)
-            }
         } else if dreamService.interpretingDreamId == dream.id {
             interpretingIndicator
         } else {
-            interpretButton(defaultTeller: defaultTeller)
+            interpretButton
         }
     }
     
@@ -93,11 +87,11 @@ private extension DreamRow {
         .padding(.top, 4)
     }
     
-    private func interpretButton(defaultTeller: FortuneTeller?) -> some View {
+    private var interpretButton: some View {
         Button {
             Task {
                 guard let userId = authManager.userId else { return }
-                guard let defaultTeller else { return }
+                guard let defaultTeller = FortuneTellerManager.allFortuneTellers.first else { return }
                 do {
                     try await dreamService.interpretDream(
                         dream: dream,

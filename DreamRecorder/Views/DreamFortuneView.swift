@@ -9,13 +9,13 @@ import AppKit
 private enum FortuneAlert: Identifiable {
     case noDream
     case missingReflection
-    case overwriteExisting
+    case overwriteInterpretation
     
     var id: String {
         switch self {
         case .noDream: return "noDream"
         case .missingReflection: return "missingReflection"
-        case .overwriteExisting: return "overwriteExisting"
+        case .overwriteInterpretation: return "overwriteInterpretation"
         }
     }
 }
@@ -39,7 +39,6 @@ struct DreamFortuneView: View {
     private let fortuneTellers = FortuneTellerManager.allFortuneTellers
     
     @State private var selectedTeller: FortuneTeller = FortuneTellerManager.allFortuneTellers.first ?? FortuneTeller(
-        id: "default",
         name: "運命の女神 ノルン",
         iconImageName: "sparkles",
         profileImageName: "sparkles",
@@ -58,7 +57,7 @@ struct DreamFortuneView: View {
     @State private var fortuneAlert: FortuneAlert?
     @State private var activeSheet: FortuneSheet?
     @State private var pendingFortuneDream: Dream?
-    @State private var pendingReflection: Reflection?
+    @State private var pendingFortuneReflection: Reflection?
 
     init(initialDate: Date? = nil) {
         _selectedDate = State(initialValue: initialDate ?? Date())
@@ -82,7 +81,7 @@ struct DreamFortuneView: View {
         Self.monthDayWeekFormatter.string(from: selectedDate)
     }
     private var displayedResultText: String? {
-        if let interpretation = selectedDream?.interpretation(for: selectedTeller.id), !interpretation.isEmpty {
+        if let interpretation = selectedDream?.interpretation, !interpretation.isEmpty {
             return interpretation
         }
         return resultText.isEmpty ? nil : resultText
@@ -143,24 +142,44 @@ struct DreamFortuneView: View {
             )) {
                 Button("日記なしで占う") {
                     guard let dream = pendingFortuneDream else { return }
-                    pendingReflection = nil
-                    proceedFortune(dream: dream, reflection: nil)
+                    // 1. まず現在のアラート状態をクリアして閉じる
+                    fortuneAlert = nil
+                    pendingFortuneReflection = nil
+                    
+                    // 【修正ポイント】
+                    // アラートが完全に閉じるのを待つため、0.5秒後に次の判定を実行する
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        // 2. 既に占い結果があるかチェック
+                        if dream.interpretation != nil {
+                            // 結果がある場合 -> 上書き確認アラートを表示
+                            fortuneAlert = .overwriteInterpretation
+                        } else {
+                            // 結果がない場合 -> そのまま占いを開始
+                            // (attemptFortuneStartの中身次第ですが、直接startFortuneを呼ぶのが確実です)
+                            startFortune(dream: dream, reflection: nil)
+                        }
+                    }
                 }
-                Button("日記を追加") { activeSheet = .addReflection(yesterdayDate) }
+                
+                Button("日記を追加") {
+                    fortuneAlert = nil
+                    activeSheet = .addReflection(yesterdayDate)
+                }
+                
                 Button("キャンセル", role: .cancel) { fortuneAlert = nil }
             }
-            .alert("この占い結果を上書きしますか？", isPresented: Binding(
-                get: { fortuneAlert == .overwriteExisting },
+            .alert("占い結果を上書きしますか？", isPresented: Binding(
+                get: { fortuneAlert == .overwriteInterpretation },
                 set: { if !$0 { fortuneAlert = nil } }
             )) {
-                Button("上書きする", role: .destructive) {
+                Button("上書きして占う", role: .destructive) {
                     guard let dream = pendingFortuneDream else { return }
-                    let reflection = pendingReflection
+                    let reflection = pendingFortuneReflection
                     startFortune(dream: dream, reflection: reflection)
                 }
                 Button("キャンセル", role: .cancel) { fortuneAlert = nil }
             } message: {
-                Text("\(selectedTeller.name)の占い結果が上書きされます。続行しますか？")
+                Text("この夢には既に占い結果があります。新しい結果で上書きしますか？")
             }
             .onChange(of: selectedDate) { _, _ in
                 resultText = ""
@@ -355,7 +374,7 @@ struct DreamFortuneView: View {
                                 .font(.dreamBody)
                                 .foregroundColor(.dreamText)
                         } else {
-                            Text("占いを実行すると、結果がここに表示されます")
+                            Text("占い師を選んで、あなたの夢を占ってもらいましょう。")
                                 .font(.dreamBody)
                                 .foregroundColor(.dreamTextSecondary)
                                 .multilineTextAlignment(.center)
@@ -459,17 +478,19 @@ struct DreamFortuneView: View {
             return
         }
         pendingFortuneDream = dream
-        pendingReflection = yesterdayReflection
+        pendingFortuneReflection = yesterdayReflection
         if let reflection = yesterdayReflection {
-            proceedFortune(dream: dream, reflection: reflection)
+            attemptFortuneStart(dream: dream, reflection: reflection)
         } else {
             fortuneAlert = .missingReflection
         }
     }
 
-    private func proceedFortune(dream: Dream, reflection: Reflection?) {
-        if let existing = dream.interpretation(for: selectedTeller.id), !existing.isEmpty {
-            fortuneAlert = .overwriteExisting
+    private func attemptFortuneStart(dream: Dream, reflection: Reflection?) {
+        pendingFortuneDream = dream
+        pendingFortuneReflection = reflection
+        if let interpretation = dream.interpretation, !interpretation.isEmpty {
+            fortuneAlert = .overwriteInterpretation
             return
         }
         startFortune(dream: dream, reflection: reflection)

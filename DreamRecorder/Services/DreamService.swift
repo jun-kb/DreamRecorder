@@ -114,7 +114,6 @@ class DreamService: ObservableObject {
             guard !userId.isEmpty else {
                 throw AppError.invalidUserId
             }
-            let tellerId = teller.id
             
             // UIを「解釈中」の状態にする
             await MainActor.run {
@@ -167,10 +166,7 @@ class DreamService: ObservableObject {
                 .document(userId)
                 .collection("dreams")
                 .document(dreamId)
-                .updateData([
-                    "interpretations.\(tellerId)": interpretation,
-                    "interpretation": interpretation // 互換性保持用に最新結果も保存
-                ])
+                .updateData(["interpretation": interpretation])
                 
         } catch {
             // エラーハンドリング（呼び出し元でUIエラー表示を行うため、ここではログ記録のみ）
@@ -195,7 +191,6 @@ class DreamService: ObservableObject {
         
         if resetInterpretation {
             dataToUpdate["interpretation"] = FieldValue.delete()
-            dataToUpdate["interpretations"] = FieldValue.delete()
         }
             
         try await db.collection("users")
