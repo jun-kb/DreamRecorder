@@ -688,7 +688,7 @@ struct DreamFortuneView: View {
                             .foregroundColor(.dreamText)
                     }
                     
-                    Text(teller.description)
+                    Text(teller.profileText)
                         .font(.system(.body, design: .rounded))
                         .foregroundColor(.dreamText)
                         .fixedSize(horizontal: false, vertical: true)
