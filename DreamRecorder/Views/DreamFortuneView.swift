@@ -42,6 +42,7 @@ struct DreamFortuneView: View {
         profileImageName: "sparkles",
         themeColor: .purple,
         description: "デフォルトの占い師",
+        profileText: "プロフィール未設定",
         systemInstruction: ""
     )
     @State private var selectedDate: Date
@@ -385,6 +386,7 @@ struct DreamFortuneView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: .infinity)
+                    .frame(height: 260) // 顔が切れにくいよう上側を優先
                     .clipped()
             } else {
                 LinearGradient(
@@ -498,21 +500,13 @@ struct DreamFortuneView: View {
                                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
                         )
 
-                    HStack(spacing: 12) {
-                        tellerIconView(teller)
-                            .frame(width: 52, height: 52)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(teller.name)
-                                .font(.system(.title3, design: .rounded, weight: .semibold))
-                                .foregroundColor(.dreamText)
-                            Text(teller.description)
-                                .font(.dreamBody)
-                                .foregroundColor(.dreamTextSecondary)
-                                .lineLimit(2)
-                        }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(teller.name)
+                            .font(.system(.title3, design: .rounded, weight: .semibold))
+                            .foregroundColor(.dreamText)
                     }
                     
-                    Text(teller.systemInstruction)
+                    Text(teller.description)
                         .font(.system(.body, design: .rounded))
                         .foregroundColor(.dreamText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -521,7 +515,6 @@ struct DreamFortuneView: View {
                 }
                 .padding()
             }
-            .navigationTitle("占い師プロフィール")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("閉じる") { tellerProfileToShow = nil }

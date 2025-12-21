@@ -12,6 +12,7 @@ struct FortuneTeller: Identifiable {
     
     // テキスト関連: ユーザー向けとAI向けを分離
     let description: String      // ユーザーがアプリ上で読む紹介文
+    let profileText: String      // プロフィール画面で見せる詳細紹介文
     let systemInstruction: String // AI（Gemini）に渡す「なりきり」指示プロンプト
 }
 
@@ -24,6 +25,7 @@ enum FortuneTellerManager {
             profileImageName: "norn_profile", // Assetsにこの名前で画像を追加してください
             themeColor: .purple,
             description: "北欧神話の運命の女神。過去・現在・未来の糸を紡ぎ、あなたの運命を厳かに、しかし母性を持って読み解きます。",
+            profileText: "運命のタペストリーを織る女神。過去・現在・未来を『青・赤・金の糸』に例え、神秘的な口調で可能性を示します。厳かさと母性を併せ持ち、迷う旅人を優しく導きます。",
             systemInstruction: """
             あなたは北欧神話の運命の三女神（ノルン）の力を持つ占い師「エアラ」です。
             ユーザーの夢（現在）と日記（過去）から、運命の糸を読み解くように分析を行います。
@@ -46,6 +48,7 @@ enum FortuneTellerManager {
             profileImageName: "morpheus_profile", // Assetsにこの名前で画像を追加してください
             themeColor: .indigo,
             description: "ギリシャ神話の夢の神。夢を形作る者として、あなたの深層心理に眠るメッセージを詩的に解き明かします。",
+            profileText: "夢を形にする神。象徴や比喩から深層心理を読み解き、詩的で少しキザな紳士口調で語ります。芸術作品を評するように、無意識の真実を静かに照らします。",
             systemInstruction: """
             あなたはギリシャ神話の夢の神モルペウスです。
             夢の形成者として、ユーザーが見た夢のイメージやシンボルから深層心理を読み解きます。
