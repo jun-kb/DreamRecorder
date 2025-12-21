@@ -36,6 +36,7 @@ struct DreamFortuneView: View {
     @EnvironmentObject private var dreamService: DreamService
     @EnvironmentObject private var reflectionService: ReflectionService
     @EnvironmentObject private var authManager: AuthManager
+    private let initialDate: Date?
     private let fortuneTellers = FortuneTellerManager.allFortuneTellers
     
     @State private var selectedTeller: FortuneTeller = FortuneTellerManager.allFortuneTellers.first ?? FortuneTeller(
@@ -60,6 +61,7 @@ struct DreamFortuneView: View {
     @State private var pendingFortuneReflection: Reflection?
 
     init(initialDate: Date? = nil) {
+        self.initialDate = initialDate
         _selectedDate = State(initialValue: initialDate ?? Date())
     }
     
@@ -184,11 +186,21 @@ struct DreamFortuneView: View {
             .onChange(of: selectedDate) { _, _ in
                 resultText = ""
             }
+            .onChange(of: initialDate) { _, newValue in
+                selectedDate = newValue ?? Date()
+            }
             .onChange(of: dreamService.errorMessage) { _, newValue in
                 if let error = newValue {
                     errorMessage = error
                     showError = true
                     dreamService.errorMessage = nil
+                }
+            }
+            .onChange(of: reflectionService.errorMessage) { _, newValue in
+                if let error = newValue {
+                    errorMessage = error
+                    showError = true
+                    reflectionService.errorMessage = nil
                 }
             }
         }
@@ -396,11 +408,11 @@ struct DreamFortuneView: View {
                 NavigationLink {
                     DailyDetailView(date: dream.recordDate)
                 } label: {
-                    FortuneCompactRow(title: "夢", content: dream.content)
+                    FortuneCompactRow(title: "今日の夢", content: dream.content)
                 }
                 .buttonStyle(.plain)
             } else {
-                AddPromptRow(type: .dream) {
+                FortuneAddPromptRow(title: "今日の夢", prompt: "夢を追加しましょう", icon: "moon.zzz") {
                     activeSheet = .addDream(selectedDate)
                 }
                 .buttonStyle(.plain)
@@ -410,11 +422,11 @@ struct DreamFortuneView: View {
                 NavigationLink {
                     DailyDetailView(date: reflection.recordDate)
                 } label: {
-                    FortuneCompactRow(title: "日記", content: reflection.content)
+                    FortuneCompactRow(title: "昨日の日記", content: reflection.content)
                 }
                 .buttonStyle(.plain)
             } else {
-                AddPromptRow(type: .reflection) {
+                FortuneAddPromptRow(title: "昨日の日記", prompt: "日記を追加しましょう", icon: "square.and.pencil") {
                     activeSheet = .addReflection(yesterdayDate)
                 }
                 .buttonStyle(.plain)
@@ -470,6 +482,44 @@ struct DreamFortuneView: View {
                     Circle()
                         .stroke(Color.white.opacity(0.12), lineWidth: 1)
                 )
+        }
+    }
+
+    private struct FortuneAddPromptRow: View {
+        let title: String
+        let prompt: String
+        let icon: String
+        let action: () -> Void
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.dreamAccent)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundColor(.dreamAccent)
+                        Text(prompt)
+                            .font(.dreamCaption)
+                            .foregroundColor(.dreamTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(.dreamTextSecondary.opacity(0.5))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color.dreamCard.opacity(0.3))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                        .foregroundColor(.dreamAccent.opacity(0.4))
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
