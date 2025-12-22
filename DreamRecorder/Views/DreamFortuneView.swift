@@ -10,40 +10,12 @@ private enum FortuneAlert: Identifiable {
     case noDream
     case missingReflection
     case overwriteInterpretation
-    case error(String)
     
     var id: String {
         switch self {
         case .noDream: return "noDream"
         case .missingReflection: return "missingReflection"
         case .overwriteInterpretation: return "overwriteInterpretation"
-        case .error: return "error"
-        }
-    }
-    
-    var title: String {
-        switch self {
-        case .noDream:
-            return "夢の記録がありません"
-        case .missingReflection:
-            return "昨日の日記が見つかりません"
-        case .overwriteInterpretation:
-            return "占い結果を上書きしますか？"
-        case .error:
-            return "エラー"
-        }
-    }
-    
-    var message: String {
-        switch self {
-        case .noDream:
-            return "夢を記録してから占いを実行してください。"
-        case .missingReflection:
-            return "日記なしで占いますか？"
-        case .overwriteInterpretation:
-            return "この夢には既に占い結果があります。新しい結果で上書きしますか？"
-        case .error(let errorMessage):
-            return errorMessage
         }
     }
 }
@@ -79,6 +51,8 @@ struct DreamFortuneView: View {
     @State private var selectedDate: Date
     @State private var isFortuning = false
     @State private var resultText: String = ""
+    @State private var showError = false
+    @State private var errorMessage = ""
     @State private var showDatePicker = false
     @State private var tellerProfileToShow: FortuneTeller?
     @State private var fortuneAlert: FortuneAlert?
@@ -150,20 +124,65 @@ struct DreamFortuneView: View {
                     AddReflectionView(recordDate: date)
                 }
             }
-            .alert(
-                fortuneAlert?.title ?? "",
-                isPresented: Binding(
-                    get: { fortuneAlert != nil },
-                    set: { if !$0 { fortuneAlert = nil } }
-                ),
-                presenting: fortuneAlert,
-                actions: { alert in
-                    alertActions(for: alert)
-                },
-                message: { alert in
-                    Text(alert.message)
+            .alert("エラー", isPresented: $showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
+            .alert("夢の記録がありません", isPresented: Binding(
+                get: { fortuneAlert == .noDream },
+                set: { if !$0 { fortuneAlert = nil } }
+            )) {
+                Button("夢を記録") { activeSheet = .addDream(selectedDate) }
+                Button("キャンセル", role: .cancel) { fortuneAlert = nil }
+            } message: {
+                Text("夢を記録してから占いを実行してください。")
+            }
+            .alert("昨日の日記が見つかりません。日記なしで占いますか？", isPresented: Binding(
+                get: { fortuneAlert == .missingReflection },
+                set: { if !$0 { fortuneAlert = nil } }
+            )) {
+                Button("日記なしで占う") {
+                    guard let dream = pendingFortuneDream else { return }
+                    // 1. まず現在のアラート状態をクリアして閉じる
+                    fortuneAlert = nil
+                    pendingFortuneReflection = nil
+                    
+                    // 【修正ポイント】
+                    // アラートが完全に閉じるのを待つため、0.5秒後に次の判定を実行する
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        // 2. 既に占い結果があるかチェック
+                        if dream.interpretation != nil {
+                            // 結果がある場合 -> 上書き確認アラートを表示
+                            fortuneAlert = .overwriteInterpretation
+                        } else {
+                            // 結果がない場合 -> そのまま占いを開始
+                            // (attemptFortuneStartの中身次第ですが、直接startFortuneを呼ぶのが確実です)
+                            startFortune(dream: dream, reflection: nil)
+                        }
+                    }
                 }
-            )
+                
+                Button("日記を追加") {
+                    fortuneAlert = nil
+                    activeSheet = .addReflection(yesterdayDate)
+                }
+                
+                Button("キャンセル", role: .cancel) { fortuneAlert = nil }
+            }
+            .alert("占い結果を上書きしますか？", isPresented: Binding(
+                get: { fortuneAlert == .overwriteInterpretation },
+                set: { if !$0 { fortuneAlert = nil } }
+            )) {
+                Button("上書きして占う", role: .destructive) {
+                    guard let dream = pendingFortuneDream else { return }
+                    let reflection = pendingFortuneReflection
+                    startFortune(dream: dream, reflection: reflection)
+                }
+                Button("キャンセル", role: .cancel) { fortuneAlert = nil }
+            } message: {
+                Text("この夢には既に占い結果があります。新しい結果で上書きしますか？")
+            }
             .onChange(of: selectedDate) { _, _ in
                 resultText = ""
             }
@@ -172,13 +191,15 @@ struct DreamFortuneView: View {
             }
             .onChange(of: dreamService.errorMessage) { _, newValue in
                 if let error = newValue {
-                    fortuneAlert = .error(error)
+                    errorMessage = error
+                    showError = true
                     dreamService.errorMessage = nil
                 }
             }
             .onChange(of: reflectionService.errorMessage) { _, newValue in
                 if let error = newValue {
-                    fortuneAlert = .error(error)
+                    errorMessage = error
+                    showError = true
                     reflectionService.errorMessage = nil
                 }
             }
@@ -584,52 +605,6 @@ struct DreamFortuneView: View {
         }
     }
     
-    // MARK: - Alert Actions
-    
-    @ViewBuilder
-    private func alertActions(for alert: FortuneAlert) -> some View {
-        switch alert {
-        case .noDream:
-            Button("夢を記録") {
-                activeSheet = .addDream(selectedDate)
-            }
-            Button("キャンセル", role: .cancel) { }
-            
-        case .missingReflection:
-            Button("日記なしで占う") {
-                handleFortuneWithoutReflection()
-            }
-            Button("日記を追加") {
-                activeSheet = .addReflection(yesterdayDate)
-            }
-            Button("キャンセル", role: .cancel) { }
-            
-        case .overwriteInterpretation:
-            Button("上書きして占う", role: .destructive) {
-                guard let dream = pendingFortuneDream else { return }
-                let reflection = pendingFortuneReflection
-                startFortune(dream: dream, reflection: reflection)
-            }
-            Button("キャンセル", role: .cancel) { }
-            
-        case .error:
-            Button("OK", role: .cancel) { }
-        }
-    }
-    
-    private func handleFortuneWithoutReflection() {
-        guard let dream = pendingFortuneDream else { return }
-        pendingFortuneReflection = nil
-        // 既に占い結果があるかチェック
-        if dream.interpretation != nil {
-            // 結果がある場合 -> 上書き確認アラートを表示
-            fortuneAlert = .overwriteInterpretation
-        } else {
-            // 結果がない場合 -> そのまま占いを開始
-            startFortune(dream: dream, reflection: nil)
-        }
-    }
-    
     private func handleFortune() {
         guard let dream = selectedDream else {
             pendingFortuneDream = nil
@@ -659,11 +634,13 @@ struct DreamFortuneView: View {
         guard let userId = authManager.userId, !userId.isEmpty else {
             let error = AppError.authenticationRequired
             ErrorLogger.logError(error, context: "DreamFortuneView.startFortune")
-            fortuneAlert = .error(ErrorLogger.userFacingMessage(from: error))
+            errorMessage = ErrorLogger.userFacingMessage(from: error)
+            showError = true
             return
         }
 
         isFortuning = true
+        errorMessage = ""
         resultText = ""
         
         Task {
@@ -679,9 +656,10 @@ struct DreamFortuneView: View {
                 }
             } catch {
                 let appError = ErrorLogger.classify(error, context: .ai)
-                ErrorLogger.logError(appError, context: "DreamFortuneView.startFortune")
+                ErrorLogger.logError(appError, context: "DreamFortuneView.handleFortune")
                 await MainActor.run {
-                    fortuneAlert = .error(ErrorLogger.userFacingMessage(from: appError))
+                    errorMessage = ErrorLogger.userFacingMessage(from: appError)
+                    showError = true
                     isFortuning = false
                 }
             }
