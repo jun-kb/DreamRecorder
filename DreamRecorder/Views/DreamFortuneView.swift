@@ -9,11 +9,41 @@ import AppKit
 private enum FortuneAlert: Identifiable {
     case noDream
     case missingReflection
+    case overwriteInterpretation
+    case error(String)
     
     var id: String {
         switch self {
         case .noDream: return "noDream"
         case .missingReflection: return "missingReflection"
+        case .overwriteInterpretation: return "overwriteInterpretation"
+        case .error: return "error"
+        }
+    }
+    
+    var title: String {
+        switch self {
+        case .noDream:
+            return "夢の記録がありません"
+        case .missingReflection:
+            return "昨日の日記が見つかりません"
+        case .overwriteInterpretation:
+            return "占い結果を上書きしますか？"
+        case .error:
+            return "エラー"
+        }
+    }
+    
+    var message: String {
+        switch self {
+        case .noDream:
+            return "夢を記録してから占いを実行してください。"
+        case .missingReflection:
+            return "日記なしで占いますか？"
+        case .overwriteInterpretation:
+            return "この夢には既に占い結果があります。新しい結果で上書きしますか？"
+        case .error(let errorMessage):
+            return errorMessage
         }
     }
 }
@@ -34,6 +64,7 @@ struct DreamFortuneView: View {
     @EnvironmentObject private var dreamService: DreamService
     @EnvironmentObject private var reflectionService: ReflectionService
     @EnvironmentObject private var authManager: AuthManager
+    private let initialDate: Date?
     private let fortuneTellers = FortuneTellerManager.allFortuneTellers
     
     @State private var selectedTeller: FortuneTeller = FortuneTellerManager.allFortuneTellers.first ?? FortuneTeller(
@@ -42,20 +73,21 @@ struct DreamFortuneView: View {
         profileImageName: "sparkles",
         themeColor: .purple,
         description: "デフォルトの占い師",
+        profileText: "プロフィール未設定",
         systemInstruction: ""
     )
     @State private var selectedDate: Date
     @State private var isFortuning = false
     @State private var resultText: String = ""
-    @State private var showError = false
-    @State private var errorMessage = ""
     @State private var showDatePicker = false
     @State private var tellerProfileToShow: FortuneTeller?
     @State private var fortuneAlert: FortuneAlert?
     @State private var activeSheet: FortuneSheet?
     @State private var pendingFortuneDream: Dream?
+    @State private var pendingFortuneReflection: Reflection?
 
     init(initialDate: Date? = nil) {
+        self.initialDate = initialDate
         _selectedDate = State(initialValue: initialDate ?? Date())
     }
     
@@ -118,39 +150,36 @@ struct DreamFortuneView: View {
                     AddReflectionView(recordDate: date)
                 }
             }
-            .alert("エラー", isPresented: $showError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(errorMessage)
-            }
-            .alert("夢の記録がありません", isPresented: Binding(
-                get: { fortuneAlert == .noDream },
-                set: { if !$0 { fortuneAlert = nil } }
-            )) {
-                Button("夢を記録") { activeSheet = .addDream(selectedDate) }
-                Button("キャンセル", role: .cancel) { fortuneAlert = nil }
-            } message: {
-                Text("夢を記録してから占いを実行してください。")
-            }
-            .alert("昨日の日記が見つかりません。日記なしで占いますか？", isPresented: Binding(
-                get: { fortuneAlert == .missingReflection },
-                set: { if !$0 { fortuneAlert = nil } }
-            )) {
-                Button("日記なしで占う") {
-                    guard let dream = pendingFortuneDream else { return }
-                    startFortune(dream: dream, reflection: nil)
+            .alert(
+                fortuneAlert?.title ?? "",
+                isPresented: Binding(
+                    get: { fortuneAlert != nil },
+                    set: { if !$0 { fortuneAlert = nil } }
+                ),
+                presenting: fortuneAlert,
+                actions: { alert in
+                    alertActions(for: alert)
+                },
+                message: { alert in
+                    Text(alert.message)
                 }
-                Button("日記を追加") { activeSheet = .addReflection(yesterdayDate) }
-                Button("キャンセル", role: .cancel) { fortuneAlert = nil }
-            }
+            )
             .onChange(of: selectedDate) { _, _ in
                 resultText = ""
             }
+            .onChange(of: initialDate) { _, newValue in
+                selectedDate = newValue ?? Date()
+            }
             .onChange(of: dreamService.errorMessage) { _, newValue in
                 if let error = newValue {
-                    errorMessage = error
-                    showError = true
+                    fortuneAlert = .error(error)
                     dreamService.errorMessage = nil
+                }
+            }
+            .onChange(of: reflectionService.errorMessage) { _, newValue in
+                if let error = newValue {
+                    fortuneAlert = .error(error)
+                    reflectionService.errorMessage = nil
                 }
             }
         }
@@ -221,6 +250,7 @@ struct DreamFortuneView: View {
     private var dailySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             compactDailyHeader
+            compactRecords
             actionButton
             resultContent
         }
@@ -336,7 +366,7 @@ struct DreamFortuneView: View {
                                 .font(.dreamBody)
                                 .foregroundColor(.dreamText)
                         } else {
-                            Text("占いを実行すると、結果がここに表示されます")
+                            Text("占い師を選んで、あなたの夢を占ってもらいましょう。")
                                 .font(.dreamBody)
                                 .foregroundColor(.dreamTextSecondary)
                                 .multilineTextAlignment(.center)
@@ -347,7 +377,128 @@ struct DreamFortuneView: View {
                     .padding()
                 }
             }
-            .frame(minHeight: 200, maxHeight: 320)
+            .frame(minHeight: 170, maxHeight: 260)
+        }
+    }
+
+    private var compactRecords: some View {
+        VStack(spacing: 10) {
+            if let dream = selectedDream {
+                NavigationLink {
+                    DailyDetailView(date: dream.recordDate)
+                } label: {
+                    FortuneCompactRow(title: "今日の夢", content: dream.content)
+                }
+                .buttonStyle(.plain)
+            } else {
+                FortuneAddPromptRow(title: "今日の夢", prompt: "夢を追加しましょう", icon: "moon.zzz") {
+                    activeSheet = .addDream(selectedDate)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let reflection = yesterdayReflection {
+                NavigationLink {
+                    DailyDetailView(date: reflection.recordDate)
+                } label: {
+                    FortuneCompactRow(title: "昨日の日記", content: reflection.content)
+                }
+                .buttonStyle(.plain)
+            } else {
+                FortuneAddPromptRow(title: "昨日の日記", prompt: "日記を追加しましょう", icon: "square.and.pencil") {
+                    activeSheet = .addReflection(yesterdayDate)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private struct FortuneCompactRow: View {
+        let title: String
+        let content: String
+        var body: some View {
+            HStack(spacing: 10) {
+                FortuneRowBadge(title: title)
+                Text(content)
+                    .font(.dreamBody)
+                    .foregroundColor(.dreamText)
+                    .lineLimit(1)
+                Spacer()
+                FortuneNavigationArrow()
+            }
+            .padding(12)
+            .background(Color.dreamCard.opacity(0.9))
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+        }
+    }
+
+    private struct FortuneRowBadge: View {
+        let title: String
+        var body: some View {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(.dreamAccent)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.dreamAccent.opacity(0.16))
+                .cornerRadius(10)
+        }
+    }
+
+    private struct FortuneNavigationArrow: View {
+        var body: some View {
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.dreamAccent)
+                .padding(8)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        }
+    }
+
+    private struct FortuneAddPromptRow: View {
+        let title: String
+        let prompt: String
+        let icon: String
+        let action: () -> Void
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.dreamAccent)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundColor(.dreamAccent)
+                        Text(prompt)
+                            .font(.dreamCaption)
+                            .foregroundColor(.dreamTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(.dreamTextSecondary.opacity(0.5))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color.dreamCard.opacity(0.3))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                        .foregroundColor(.dreamAccent.opacity(0.4))
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -385,6 +536,7 @@ struct DreamFortuneView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: .infinity)
+                    .frame(height: 260) // 顔が切れにくいよう上側を優先
                     .clipped()
             } else {
                 LinearGradient(
@@ -432,6 +584,52 @@ struct DreamFortuneView: View {
         }
     }
     
+    // MARK: - Alert Actions
+    
+    @ViewBuilder
+    private func alertActions(for alert: FortuneAlert) -> some View {
+        switch alert {
+        case .noDream:
+            Button("夢を記録") {
+                activeSheet = .addDream(selectedDate)
+            }
+            Button("キャンセル", role: .cancel) { }
+            
+        case .missingReflection:
+            Button("日記なしで占う") {
+                handleFortuneWithoutReflection()
+            }
+            Button("日記を追加") {
+                activeSheet = .addReflection(yesterdayDate)
+            }
+            Button("キャンセル", role: .cancel) { }
+            
+        case .overwriteInterpretation:
+            Button("上書きして占う", role: .destructive) {
+                guard let dream = pendingFortuneDream else { return }
+                let reflection = pendingFortuneReflection
+                startFortune(dream: dream, reflection: reflection)
+            }
+            Button("キャンセル", role: .cancel) { }
+            
+        case .error:
+            Button("OK", role: .cancel) { }
+        }
+    }
+    
+    private func handleFortuneWithoutReflection() {
+        guard let dream = pendingFortuneDream else { return }
+        pendingFortuneReflection = nil
+        // 既に占い結果があるかチェック
+        if dream.interpretation != nil {
+            // 結果がある場合 -> 上書き確認アラートを表示
+            fortuneAlert = .overwriteInterpretation
+        } else {
+            // 結果がない場合 -> そのまま占いを開始
+            startFortune(dream: dream, reflection: nil)
+        }
+    }
+    
     private func handleFortune() {
         guard let dream = selectedDream else {
             pendingFortuneDream = nil
@@ -439,24 +637,33 @@ struct DreamFortuneView: View {
             return
         }
         pendingFortuneDream = dream
+        pendingFortuneReflection = yesterdayReflection
         if let reflection = yesterdayReflection {
-            startFortune(dream: dream, reflection: reflection)
+            attemptFortuneStart(dream: dream, reflection: reflection)
         } else {
             fortuneAlert = .missingReflection
         }
+    }
+
+    private func attemptFortuneStart(dream: Dream, reflection: Reflection?) {
+        pendingFortuneDream = dream
+        pendingFortuneReflection = reflection
+        if let interpretation = dream.interpretation, !interpretation.isEmpty {
+            fortuneAlert = .overwriteInterpretation
+            return
+        }
+        startFortune(dream: dream, reflection: reflection)
     }
     
     private func startFortune(dream: Dream, reflection: Reflection?) {
         guard let userId = authManager.userId, !userId.isEmpty else {
             let error = AppError.authenticationRequired
             ErrorLogger.logError(error, context: "DreamFortuneView.startFortune")
-            errorMessage = ErrorLogger.userFacingMessage(from: error)
-            showError = true
+            fortuneAlert = .error(ErrorLogger.userFacingMessage(from: error))
             return
         }
 
         isFortuning = true
-        errorMessage = ""
         resultText = ""
         
         Task {
@@ -472,10 +679,9 @@ struct DreamFortuneView: View {
                 }
             } catch {
                 let appError = ErrorLogger.classify(error, context: .ai)
-                ErrorLogger.logError(appError, context: "DreamFortuneView.handleFortune")
+                ErrorLogger.logError(appError, context: "DreamFortuneView.startFortune")
                 await MainActor.run {
-                    errorMessage = ErrorLogger.userFacingMessage(from: appError)
-                    showError = true
+                    fortuneAlert = .error(ErrorLogger.userFacingMessage(from: appError))
                     isFortuning = false
                 }
             }
@@ -498,21 +704,13 @@ struct DreamFortuneView: View {
                                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
                         )
 
-                    HStack(spacing: 12) {
-                        tellerIconView(teller)
-                            .frame(width: 52, height: 52)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(teller.name)
-                                .font(.system(.title3, design: .rounded, weight: .semibold))
-                                .foregroundColor(.dreamText)
-                            Text(teller.description)
-                                .font(.dreamBody)
-                                .foregroundColor(.dreamTextSecondary)
-                                .lineLimit(2)
-                        }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(teller.name)
+                            .font(.system(.title3, design: .rounded, weight: .semibold))
+                            .foregroundColor(.dreamText)
                     }
                     
-                    Text(teller.systemInstruction)
+                    Text(teller.profileText)
                         .font(.system(.body, design: .rounded))
                         .foregroundColor(.dreamText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -521,7 +719,6 @@ struct DreamFortuneView: View {
                 }
                 .padding()
             }
-            .navigationTitle("占い師プロフィール")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("閉じる") { tellerProfileToShow = nil }
